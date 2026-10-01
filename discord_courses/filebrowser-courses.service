@@ -1,0 +1,17 @@
+[Unit]
+Description=FileBrowser des cours en lecture seule
+After=network.target
+
+[Service]
+User=CHANGE_ME_USER
+WorkingDirectory=/opt/isen-cours/discord_courses
+ExecStart=/opt/isen-cours/discord_courses/filebrowser --database /opt/isen-cours/discord_courses/filebrowser.db --address 127.0.0.1 --port 18882 --disableExec=true
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=full
+ReadOnlyPaths=/srv/cours
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,14 @@
+[Unit]
+Description=Telechargements de cours par liens signes
+After=network.target
+
+[Service]
+User=CHANGE_ME_USER
+WorkingDirectory=/opt/isen-cours/discord_courses
+ExecStart=/opt/isen-cours/discord_courses/venv/bin/python /opt/isen-cours/discord_courses/download_server.py
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

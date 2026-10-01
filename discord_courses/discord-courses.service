@@ -1,0 +1,17 @@
+[Unit]
+Description=Explorateur des cours Discord
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=CHANGE_ME_USER
+WorkingDirectory=/opt/isen-cours/discord_courses
+ExecStart=/opt/isen-cours/discord_courses/venv/bin/python /opt/isen-cours/discord_courses/bot.py
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+RestartSec=10
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

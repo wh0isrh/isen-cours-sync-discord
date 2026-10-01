@@ -1,0 +1,6 @@
+.env
+__pycache__/
+.venv/
+.download_key
+download_url.json
+cloudflared

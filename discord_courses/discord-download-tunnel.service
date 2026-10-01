@@ -1,0 +1,16 @@
+[Unit]
+Description=Tunnel HTTPS des telechargements de cours
+After=network-online.target discord-downloads.service
+Wants=network-online.target discord-downloads.service
+
+[Service]
+User=CHANGE_ME_USER
+WorkingDirectory=/opt/isen-cours/discord_courses
+ExecStart=/opt/isen-cours/discord_courses/venv/bin/python /opt/isen-cours/discord_courses/tunnel_runner.py
+Restart=always
+RestartSec=10
+UMask=0077
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
