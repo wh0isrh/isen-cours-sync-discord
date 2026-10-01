@@ -16,6 +16,7 @@ class CoursesBot(commands.Bot):
 
     async def setup_hook(self):
         await self.load_extension('course_browser')
+        await self.load_extension('server_control')
         # Les commandes globales sont nécessaires dans les DM du bot.
         commands_synced = await self.tree.sync()
         logging.info('%s commande(s) globale(s) enregistrée(s)', len(commands_synced))

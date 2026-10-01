@@ -64,6 +64,28 @@ sudo journalctl -u discord-courses -n 30 --no-pager
 
 Lancer `render_services.py` avec le compte qui doit exécuter le bot, sans `sudo`. Ne pas installer les modèles contenant `CHANGE_ME_USER` directement. Le dossier du venv doit s'appeler `venv`.
 
+## Arrêter le PC avec Discord
+
+`/arreter` fonctionne sur le serveur et en DM. Seul l'ID numérique renseigné dans `BOT_OWNER_ID` du `.env` local peut l'utiliser ou confirmer l'arrêt. Sans ID, la commande est refusée à tous. Les permissions Administrateur Discord ne donnent pas ce droit à un autre utilisateur.
+
+La commande affiche une confirmation privée, valable 60 secondes. « Annuler » laisse le PC allumé. « Éteindre le PC » programme l'arrêt complet une minute plus tard : le bot, FileBrowser et le tunnel seront alors indisponibles. Le redémarrage nécessite un réveil réseau ou une intervention locale.
+
+Configurer Ubuntu avec `sudo visudo -f /etc/sudoers.d/discord-courses-shutdown`, en remplaçant `COMPTE_DU_BOT` par le compte Linux du service :
+
+```sudoers
+COMPTE_DU_BOT ALL=(root) NOPASSWD: /sbin/shutdown -h +1
+```
+
+Vérifier la syntaxe avec `sudo visudo -c` et protéger ce fichier avec le mode 440, propriétaire root. Ne pas autoriser tous les arguments de shutdown ou un accès sudo général sans mot de passe. Après avoir renseigné `BOT_OWNER_ID`, redémarrer le bot pour recharger sa configuration.
+
+Pour vérifier la permission sans éteindre le PC, exécuter sous le compte du bot :
+
+```bash
+sudo -n -l /sbin/shutdown -h +1
+```
+
+Les tests de `test_server_control.py` simulent le processus d'arrêt : ils ne coupent jamais la machine.
+
 ## Erreurs courantes
 
 | Symptôme | Vérification |
