@@ -2,10 +2,12 @@
 
 ## Préparer les fichiers et le venv
 
-Installer le projet dans un dossier sans espaces, par exemple `~/isen-cours`, et installer Python 3.10+ et son module venv sur une distribution maintenue. Un ancien serveur peut réutiliser un Python 3.8 compatible déjà installé, mais pas un Python 3.6.
+Installer le projet dans un dossier sans espaces accessible avant toute connexion utilisateur, par exemple `/opt/isen-cours`, et installer Python 3.10+ et son module venv sur une distribution maintenue. Un ancien serveur peut réutiliser un Python 3.8 compatible déjà installé, mais pas un Python 3.6.
+
+Ne pas installer les services ou les cours dans un dossier personnel chiffré eCryptfs : après un Wake-on-LAN, ils ne sont pas accessibles tant que la session utilisateur n'a pas déverrouillé ce dossier. Préférer `/opt/isen-cours/discord_courses` pour le bot et `/srv/cours` pour les documents, avec le compte du bot comme propriétaire. Protéger le dossier du bot par le mode 700 et `.env`, la clé et la base FileBrowser par le mode 600.
 
 ```bash
-cd ~/isen-cours/discord_courses
+cd /opt/isen-cours/discord_courses
 python3 -m venv venv
 ./venv/bin/python -m pip install -r requirements.txt
 test -f .env || cp .env.example .env

@@ -39,8 +39,9 @@ Guides détaillés : [Windows et Moodle](docs/WINDOWS_MOODLE.md), [bot et serveu
 Sur un Ubuntu disposant de Python 3.10 ou plus récent :
 
 ```bash
-git clone https://github.com/wh0isrh/isen-cours-sync-discord.git ~/isen-cours
-cd ~/isen-cours/discord_courses
+sudo install -d -m 755 -o "$(id -un)" -g "$(id -gn)" /opt/isen-cours
+git clone https://github.com/wh0isrh/isen-cours-sync-discord.git /opt/isen-cours
+cd /opt/isen-cours/discord_courses
 python3 -m venv venv
 ./venv/bin/python -m pip install -r requirements.txt
 cp .env.example .env
@@ -49,6 +50,8 @@ nano .env
 ```
 
 Renseigner au minimum `DISCORD_TOKEN`, `COURS_DIR` et de préférence `DISCORD_GUILD_ID`. Ne jamais mettre le token dans `bot.py` ou dans GitHub.
+
+Pour le démarrage après Wake-on-LAN, le bot et les cours doivent être disponibles sans connexion utilisateur. Éviter les dossiers personnels chiffrés ; utiliser `/opt` pour le bot et `/srv` pour les cours, avec des permissions restrictives.
 
 ```bash
 ./venv/bin/python check_courses.py

@@ -16,7 +16,7 @@ FileBrowser est archivé : son dépôt annonce l'arrêt des corrections et mises
 ## Installer et configurer
 
 ```bash
-cd ~/isen-cours/discord_courses
+cd /opt/isen-cours/discord_courses
 ./venv/bin/python install_filebrowser.py
 ./venv/bin/python render_services.py
 ```
