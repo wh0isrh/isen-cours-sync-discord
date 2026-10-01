@@ -74,7 +74,8 @@ def main():
         release_asset('cloudflare/cloudflared', 'cloudflared-linux-' + arch, BASE / 'cloudflared')
         (BASE / 'cloudflared').chmod(0o700)
     for binary in ('filebrowser', 'cloudflared'):
-        subprocess.run([str(BASE / binary), '--version'], check=True)
+        version_argument = 'version' if binary == 'filebrowser' else '--version'
+        subprocess.run([str(BASE / binary), version_argument], check=True)
     database = BASE / 'filebrowser.db'
     marker = BASE / '.filebrowser_setup.json'
     if database.exists() and not marker.exists():
