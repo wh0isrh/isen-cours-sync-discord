@@ -378,7 +378,12 @@ class SameOriginRedirect(HTTPRedirectHandler):
         if "/login/" in p.path:
             fp.close()
             raise AuthenticationExpired("Session Junia expirée. Relancer pour se reconnecter.")
-        return super().redirect_request(request, fp, code, msg, headers, newurl)
+        redirected = super().redirect_request(request, fp, code, msg, headers, newurl)
+        # Python 3.10/3.11 convertissent certains HEAD redirigés en GET.
+        # Conserver HEAD pour vérifier une ressource sans télécharger son contenu.
+        if redirected is not None and request.get_method() == "HEAD":
+            redirected.method = "HEAD"
+        return redirected
 
 
 @dataclass
