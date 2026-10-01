@@ -12,7 +12,7 @@ import course_browser as app
 
 def interaction(user=1, limit=10 * 1024 * 1024):
     response = SimpleNamespace(defer=AsyncMock(), is_done=lambda: True, send_message=AsyncMock())
-    return SimpleNamespace(user=SimpleNamespace(id=user, roles=[]), response=response,
+    return SimpleNamespace(user=SimpleNamespace(id=user, roles=[]), guild_id=123, response=response,
                            followup=SimpleNamespace(send=AsyncMock()), filesize_limit=limit,
                            message=SimpleNamespace(edit=AsyncMock()))
 
@@ -186,8 +186,44 @@ class BrowserTests(unittest.IsolatedAsyncioTestCase):
         try:
             await bot.add_cog(app.CourseBrowser(bot, self.settings))
             self.assertIsNotNone(bot.tree.get_command('cours'))
+            command = bot.tree.get_command('cours')
+            self.assertFalse(command.guild_only)
+            self.assertTrue(command.allowed_contexts.dm_channel)
+            self.assertTrue(command.allowed_contexts.guild)
         finally:
             await bot.close()
+
+    async def test_dm_checks_real_server_membership_and_roles(self):
+        current = interaction()
+        current.guild_id = None
+        guild = SimpleNamespace(id=123, fetch_member=AsyncMock(return_value=SimpleNamespace(roles=[SimpleNamespace(id=42)])))
+        current.client = SimpleNamespace(guilds=[guild])
+        with patch.dict(os.environ, {'DISCORD_GUILD_ID': '123'}):
+            self.assertTrue(await app.authorized(current, self.settings))
+            self.assertTrue(await app.authorized(current, app.Settings(self.root, roles=(42,))))
+            self.assertFalse(await app.authorized(current, app.Settings(self.root, roles=(99,))))
+            with patch.dict(os.environ, {'DISCORD_GUILD_ID': '456'}):
+                self.assertFalse(await app.authorized(current, self.settings))
+            guild.fetch_member.side_effect = discord.NotFound(SimpleNamespace(status=404, reason='Not Found'), 'unknown member')
+            self.assertFalse(await app.authorized(current, self.settings))
+
+    async def test_dm_opens_explorer_and_checks_buttons(self):
+        self.file('Cours/Chapitre/document.pdf')
+        current = interaction()
+        current.guild_id = None
+        guild = SimpleNamespace(id=123, fetch_member=AsyncMock(return_value=SimpleNamespace(roles=[])))
+        current.client = SimpleNamespace(guilds=[guild])
+        current.edit_original_response = AsyncMock(return_value=SimpleNamespace(id=7))
+        current.delete_original_response = AsyncMock()
+        current.channel = SimpleNamespace(get_partial_message=lambda message_id: SimpleNamespace(edit=AsyncMock()))
+        cog = app.CourseBrowser(None, self.settings)
+        with patch.dict(os.environ, {'DISCORD_GUILD_ID': '123'}):
+            await cog.cours.callback(cog, current)
+            view = current.edit_original_response.call_args.kwargs['view']
+            self.assertTrue(await view.interaction_check(current))
+            guild.fetch_member.side_effect = discord.NotFound(SimpleNamespace(status=404, reason='Not Found'), 'unknown member')
+            self.assertFalse(await view.interaction_check(current))
+            view.stop()
 
     @unittest.skipUnless(os.name == 'posix', 'Protection dir_fd vérifiée sur Ubuntu')
     async def test_symlink_and_fifo_are_not_downloaded(self):

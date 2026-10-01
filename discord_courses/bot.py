@@ -16,14 +16,15 @@ class CoursesBot(commands.Bot):
 
     async def setup_hook(self):
         await self.load_extension('course_browser')
+        # Les commandes globales sont nécessaires dans les DM du bot.
+        commands_synced = await self.tree.sync()
+        logging.info('%s commande(s) globale(s) enregistrée(s)', len(commands_synced))
         guild_id = os.environ.get('DISCORD_GUILD_ID', '').strip()
         if guild_id:
             guild = discord.Object(id=int(guild_id))
             self.tree.copy_global_to(guild=guild)
             commands_synced = await self.tree.sync(guild=guild)
-        else:
-            commands_synced = await self.tree.sync()
-        logging.info('%s commande(s) enregistrée(s)', len(commands_synced))
+            logging.info('%s commande(s) du serveur enregistrée(s)', len(commands_synced))
 
     async def on_ready(self):
         logging.info('Bot connecté : %s (id=%s)', self.user.name, self.user.id)

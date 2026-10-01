@@ -213,8 +213,8 @@ class CourseView(discord.ui.View):
         if interaction.user.id != self.owner_id:
             await notify(interaction, 'Lance /cours pour ouvrir ton propre explorateur.')
             return False
-        if not allowed(interaction, self.catalog.settings):
-            await notify(interaction, 'Tu ne disposes plus du rôle nécessaire pour accéder aux cours.')
+        if not await authorized(interaction, self.catalog.settings):
+            await notify(interaction, "Tu n'as plus accès aux cours sur le serveur Discord du bot.")
             return False
         return True
 
@@ -341,19 +341,39 @@ def allowed(interaction, settings):
     return bool(roles.intersection(settings.roles))
 
 
+async def authorized(interaction, settings):
+    if interaction.guild_id is not None:
+        return allowed(interaction, settings)
+    # En DM, les rôles ne sont pas inclus dans l'interaction. Vérifier l'accès
+    # sur le serveur d'origine, sans ouvrir les cours aux utilisateurs externes.
+    guilds = interaction.client.guilds
+    configured = os.environ.get('DISCORD_GUILD_ID', '').strip()
+    if configured:
+        guilds = [guild for guild in guilds if str(guild.id) == configured]
+    for guild in guilds:
+        try:
+            member = await guild.fetch_member(interaction.user.id)
+        except discord.HTTPException:
+            continue
+        if not settings.roles or set(settings.roles).intersection(role.id for role in member.roles):
+            return True
+    return False
+
+
 class CourseBrowser(commands.Cog):
     def __init__(self, bot, settings=None):
         self.bot = bot
         self.catalog = Catalog(settings or Settings.from_env())
 
     @app_commands.command(name='cours', description='Explorer les matières, chapitres et documents de cours')
-    @app_commands.guild_only()
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=False)
     @app_commands.checks.cooldown(2, 10.0, key=lambda i: i.user.id)
     async def cours(self, interaction: discord.Interaction):
-        if not allowed(interaction, self.catalog.settings):
-            await notify(interaction, "Tu n'as pas le rôle nécessaire pour accéder aux cours.")
-            return
         await interaction.response.defer(thinking=True)
+        if not await authorized(interaction, self.catalog.settings):
+            await notify(interaction, "Tu dois être membre du serveur du bot avec le rôle autorisé pour accéder aux cours.")
+            await interaction.delete_original_response()
+            return
         view = CourseView(self.catalog, interaction.user.id)
         try:
             embed = await view.build()

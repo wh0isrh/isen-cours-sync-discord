@@ -55,7 +55,7 @@ Renseigner au minimum `DISCORD_TOKEN`, `COURS_DIR` et de préférence `DISCORD_G
 ./venv/bin/python bot.py
 ```
 
-Puis lancer `/cours` dans le serveur Discord où le bot est invité. Le bot doit disposer des permissions Voir le salon, Envoyer des messages, Intégrer des liens et Joindre des fichiers. L'invitation doit inclure les scopes `bot` et `applications.commands`.
+Puis lancer `/cours` dans le serveur Discord où le bot est invité, ou en message privé avec le bot. En DM, l'accès reste réservé aux membres autorisés d'un serveur du bot ; les rôles configurés sont vérifiés sur ce serveur. Le bot doit disposer des permissions Voir le salon, Envoyer des messages, Intégrer des liens et Joindre des fichiers. L'invitation doit inclure les scopes `bot` et `applications.commands`.
 
 ## Comportement de l'explorateur
 

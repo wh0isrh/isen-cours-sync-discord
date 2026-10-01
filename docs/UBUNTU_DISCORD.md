@@ -27,7 +27,9 @@ COURS_VIEW_TIMEOUT=1800
 COURS_ALLOWED_ROLE_IDS=
 ```
 
-Renseigner `DISCORD_GUILD_ID` avec l'ID du serveur pour y enregistrer immédiatement `/cours`. Vide : enregistrement global, dont l'apparition peut prendre plus de temps. Pour obtenir les IDs, activer le mode développeur dans Discord et copier l'identifiant du serveur ou du rôle.
+Renseigner `DISCORD_GUILD_ID` avec l'ID du serveur pour y enregistrer immédiatement `/cours`. La commande est aussi enregistrée globalement pour être disponible en message privé avec le bot ; son apparition globale peut prendre plus de temps. Pour obtenir les IDs, activer le mode développeur dans Discord et copier l'identifiant du serveur ou du rôle.
+
+En DM, ouvrir la conversation avec le bot puis sélectionner `/cours` dans le menu des commandes slash. Le bot vérifie l'appartenance au serveur configuré et les rôles autorisés. Sans DISCORD_GUILD_ID, l'utilisateur doit appartenir à au moins un serveur où le bot est présent, avec un rôle autorisé si cette restriction est configurée. Les mêmes menus, pièces jointes et liens HTTPS fonctionnent dans cette conversation privée.
 
 Inviter le bot avec les scopes `bot` et `applications.commands`. Accorder Voir le salon, Envoyer des messages, Intégrer des liens et Joindre des fichiers. Pour un fil de discussion, autoriser aussi les messages dans les fils. Aucun intent privilégié Message Content n'est nécessaire pour `/cours`.
 
