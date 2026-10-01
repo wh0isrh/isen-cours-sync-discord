@@ -13,6 +13,22 @@ def interaction(owner=123):
 
 
 class ShutdownTests(unittest.IsolatedAsyncioTestCase):
+    async def test_confirmation_payload_does_not_send_invalid_power_emoji(self):
+        controller=app.ServerControl(None,owner_id=123)
+        current=interaction()
+        async def validate_response(content,view,**kwargs):
+            for row in view.to_components():
+                for button in row['components']:
+                    if button.get('emoji',{}).get('name')=='\u23fb':
+                        raise RuntimeError('Discord rejects this symbol as an emoji')
+        current.response.send_message.side_effect=validate_response
+        with patch.object(app,'schedule_shutdown',new_callable=AsyncMock) as stop:
+            await controller.arreter.callback(controller,current)
+            view=current.response.send_message.call_args.kwargs['view']
+            self.assertEqual(view.children[0].label,'Éteindre le PC')
+            stop.assert_not_awaited()
+            view.stop()
+
     async def test_non_owner_cannot_open_or_confirm_stop(self):
         controller=app.ServerControl(None,owner_id=123)
         current=interaction(456)

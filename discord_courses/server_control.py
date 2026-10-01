@@ -50,7 +50,7 @@ class StopServerView(discord.ui.View):
             item.disabled = True
         self.stop()
 
-    @discord.ui.button(label='Éteindre le PC', emoji='⏻', style=discord.ButtonStyle.danger)
+    @discord.ui.button(label='Éteindre le PC', style=discord.ButtonStyle.danger)
     async def confirm(self, interaction, button):
         if not await self.interaction_check(interaction):
             return
@@ -129,7 +129,10 @@ class ServerControl(commands.Cog):
         if isinstance(error, app_commands.CommandOnCooldown):
             await reply(interaction, 'Attends quelques secondes avant de relancer /arreter.')
         else:
-            LOG.error('Erreur /arreter : %s', type(error).__name__)
+            original = getattr(error, 'original', error)
+            LOG.error('Erreur /arreter : %s (HTTP %s, code %s)',
+                      type(original).__name__, getattr(original, 'status', None), getattr(original, 'code', None),
+                      exc_info=(type(original), original, original.__traceback__))
             await reply(interaction, "Impossible de préparer l’arrêt. Le PC reste allumé.")
 
 
