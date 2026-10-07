@@ -918,6 +918,25 @@ def report(summary, cfg):
     data = {"date": datetime.now(timezone.utc).isoformat(), "sent": sorted(summary.sent), "skipped": sorted(summary.skipped), "metadata_sent": sorted(summary.metadata_sent), "errors": errors, "unavailable": summary.unavailable, "courses": summary.courses, "bytes_sent": summary.bytes_sent, "external_links": summary.external_links}
     text = json.dumps(data, ensure_ascii=False, indent=2)
     (cfg.state_dir / "dernier_rapport.json").write_text(text, encoding="utf-8")
+
+    print("\n" + "=" * 65)
+    if summary.sent:
+        print(f" ✨ RÉCAPITULATIF DES NOUVEAUX COURS DÉTECTÉS ({len(summary.sent)}) :")
+        print("=" * 65)
+        by_course = {}
+        for item in sorted(summary.sent):
+            parts = item.split("/", 1)
+            course_name = parts[0]
+            file_name = parts[1] if len(parts) > 1 else item
+            by_course.setdefault(course_name, []).append(file_name)
+        for course_name, files in sorted(by_course.items()):
+            print(f"\n 📁 [{course_name}] ({len(files)} nouveau(x)) :")
+            for f in files:
+                print(f"    └── 📄 {f}")
+    else:
+        print(" ℹ️ Aucun nouveau fichier : tous les cours sont déjà à jour.")
+    print("=" * 65)
+
     print("\nRésumé de la synchronisation")
     print(f"Fichiers nouveaux/mis à jour : {len(summary.sent)}")
     print(f"Fichiers ignorés : {len(summary.skipped)}")
