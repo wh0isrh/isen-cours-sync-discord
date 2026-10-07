@@ -27,8 +27,7 @@ def ensure_onedrive_mount():
                 str(rclone), 'mount',
                 'onedrive:Cours_ISEN/ISEN_Lille_2026-2027',
                 str(cours_dir),
-                '--vfs-cache-mode', 'minimal',
-                '--read-only',
+                '--vfs-cache-mode', 'full',
                 '--dir-cache-time', '1m',
                 '--daemon'
             ], check=True)
