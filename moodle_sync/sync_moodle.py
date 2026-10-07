@@ -755,6 +755,10 @@ class Synchronizer:
         self.seen_files.add(seen_key)
         meta = self.http.head(resource.url)
         relative = resource.prefix + meta.name
+        if relative in self.store.records or self.store.attributes(self.store.remote(relative)) is not None:
+            self.summary.mark(relative)
+            LOG.info("Ignoré (déjà présent) : %s", relative)
+            return
         record = None
         for candidate, saved in self.store.records.items():
             if candidate.startswith(resource.prefix) and identity in saved.get("sources", {}):
