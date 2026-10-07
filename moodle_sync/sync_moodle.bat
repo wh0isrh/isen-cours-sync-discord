@@ -25,20 +25,10 @@ if not exist "..\ISEN_Lille_2026-2027" goto end_script
 
 echo.
 echo ========================================================
-echo Synchronisation vers OneDrive
+echo Envoi instantan? vers OneDrive avec Rclone...
 echo ========================================================
-set "DO_PUSH="
-set /p "DO_PUSH=Appuyer sur Entree pour pousser vers OneDrive (ou tapez N pour annuler) : "
-if /i "%DO_PUSH%"=="N" (
-    echo.
-    echo Synchronisation vers OneDrive annulee par l'utilisateur.
-    goto end_script
-)
-
-echo.
-echo Envoi en cours vers OneDrive avec Rclone...
 "%RCLONE_BIN%" copy "..\ISEN_Lille_2026-2027" "onedrive:Cours_ISEN/ISEN_Lille_2026-2027" --transfers 4 --fast-list
-echo Synchronisation terminee avec succes !
+echo Synchronisation OneDrive termin?e avec succ?s !
 
 :end_script
 echo.
