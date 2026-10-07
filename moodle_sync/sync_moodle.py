@@ -333,13 +333,24 @@ def microsoft_login(context, cfg):
         active = next((p for p in reversed(context.pages) if not p.is_closed()), page)
         host = urlsplit(active.url).hostname or ""
         if host in {"login.microsoftonline.com", "login.live.com", "login.windows.net"}:
-            if cfg.email and not sent_email and fill_visible(active, "input[type=email], input[name=loginfmt]", cfg.email):
+            tile = active.locator(f"[data-test-id*='{cfg.email}'], [role='button']:has-text('{cfg.email}')").filter(has_text=cfg.email)
+            if not sent_email and tile.count() and tile.first.is_visible():
+                tile.first.click()
+                sent_email = True
+            elif cfg.email and not sent_email and fill_visible(active, "input[type=email], input[name=loginfmt]", cfg.email):
                 active.locator("input[type=email], input[name=loginfmt]").first.press("Enter")
                 sent_email = True
             elif cfg.password and not sent_password and fill_visible(active, "input[name=passwd], input[type=password]", cfg.password):
                 active.locator("input[name=passwd], input[type=password]").first.press("Enter")
                 sent_password = True
                 countdown_until = time.monotonic() + cfg.wait_2fa
+            # Valider automatiquement « Rester connecté ? » si présent
+            kmsi = active.locator("input#idSIButton9, input[type=submit][value='Oui'], button:has-text('Oui')")
+            if kmsi.count() and kmsi.first.is_visible() and active.get_by_text(re.compile("Rester connect|Stay signed", re.I)).count():
+                check = active.locator("input#KmsiCheckboxField, input[name='DontShowAgain']")
+                if check.count() and check.first.is_visible() and not check.first.is_checked():
+                    check.first.check()
+                kmsi.first.click()
             # La notification peut arriver après la saisie manuelle du mot de passe.
             if not announced and (sent_password or active.get_by_text(re.compile("Authenticator|approuv|approve|vérifi.*identité", re.I)).count()):
                 announced = True
