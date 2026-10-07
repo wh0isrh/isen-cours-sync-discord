@@ -59,3 +59,10 @@ Si tu disposes d'un dossier local de cours trié, renseigner `AUDIT_DIR` avec so
 `WOL_MAC` peut contenir la MAC de la carte Ethernet du serveur, avec `WOL_BROADCAST` adapté au réseau local. Le Wake-on-LAN doit être pris en charge et activé sur la machine. Être connecté au même réseau ou disposer d'un relais adapté est nécessaire ; renseigner une IP ne rend pas un serveur privé accessible depuis Internet.
 
 Les rapports sont dans `.state/sync.log` et `.state/dernier_rapport.json`. La fenêtre du batch reste ouverte à la fin. `.state/` contient aussi la session navigateur et doit rester hors du dépôt.
+
+## 6. Synchronisation automatique vers OneDrive / Cloud avec Rclone
+
+Pour stocker les cours directement sur un Cloud (OneDrive, Google Drive...) et éviter de charger le disque local ou le serveur :
+1. Configurer Rclone : `rclone config` et créer un accès nommé `onedrive`.
+2. Le script `sync_moodle.bat` synchronise automatiquement le dossier des cours vers `onedrive:Cours_ISEN/ISEN_Lille_2026-2027` à la fin de la récupération.
+3. Sur le serveur Ubuntu / VPS, Rclone peut monter ce même dossier (`rclone mount onedrive:Cours_ISEN/ISEN_Lille_2026-2027 /srv/cours_isen/ISEN_Lille_2026-2027 --vfs-cache-mode minimal --read-only --daemon`) afin que le bot Discord serve les fichiers en streaming direct avec 0 Mo d'espace disque consommé sur la machine.

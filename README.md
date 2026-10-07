@@ -102,4 +102,3 @@ Dans GitHub : Settings → Collaborators / Manage access → Add people. Inviter
 
 Voir aussi [les règles pour les secrets](SECURITY.md).
 
-La commande `/arreter` permet au propriétaire désigné par `BOT_OWNER_ID` d'éteindre le PC après confirmation. Elle exige une permission Ubuntu limitée à cette action ; voir [la configuration d'arrêt](docs/UBUNTU_DISCORD.md#arrêter-le-pc-avec-discord).
