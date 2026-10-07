@@ -5,6 +5,7 @@ import logging
 import math
 import os
 import stat
+import time
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
@@ -82,9 +83,17 @@ class Entry:
 
 
 class Catalog:
-    def __init__(self, settings):
+    def __init__(self, settings, cache_ttl=60):
         self.settings = settings
         self.root = settings.root.resolve()
+        self.cache_ttl = cache_ttl
+        self._cache = {}
+
+    def clear_cache(self, relative=None):
+        if relative is None:
+            self._cache.clear()
+        else:
+            self._cache.pop(Path(relative), None)
 
     def check(self, relative=Path('.')):
         relative = Path(relative)
@@ -101,6 +110,12 @@ class Catalog:
         return path
 
     def list(self, relative=Path('.')):
+        relative = Path(relative)
+        now = time.monotonic()
+        if relative in self._cache:
+            cached_time, entries = self._cache[relative]
+            if now - cached_time < self.cache_ttl:
+                return entries
         folder = self.check(relative)
         entries = []
         with os.scandir(str(folder)) as children:
@@ -117,7 +132,9 @@ class Catalog:
                 if relative == Path('.') and not is_dir:
                     continue
                 entries.append(Entry(Path(child.path).relative_to(self.root), is_dir, info.st_size))
-        return sorted(entries, key=lambda e: (not e.folder, display_name(e.path.name).casefold(), e.path.name))
+        result = sorted(entries, key=lambda e: (not e.folder, display_name(e.path.name).casefold(), e.path.name))
+        self._cache[relative] = (now, result)
+        return result
 
     def open_document(self, relative):
         path = self.check(relative)
@@ -280,7 +297,10 @@ class CourseView(discord.ui.View):
         await self.navigate(interaction, move)
 
     async def refresh(self, interaction):
-        await self.navigate(interaction, lambda: None)
+        def clear():
+            if hasattr(self.catalog, 'clear_cache'):
+                self.catalog.clear_cache(self.relative)
+        await self.navigate(interaction, clear)
 
     async def previous(self, interaction):
         await self.navigate(interaction, lambda: setattr(self, 'page', self.page - 1))
@@ -394,6 +414,16 @@ class CourseBrowser(commands.Cog):
         else:
             LOG.error('Erreur /cours : %s', type(error).__name__)
             await notify(interaction, "Impossible d'ouvrir l'explorateur. Vérifie les permissions du bot.")
+
+    @app_commands.command(name='actualiser', description="Vider le cache mémoire de l'explorateur de cours")
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=False)
+    async def actualiser(self, interaction: discord.Interaction):
+        if not await authorized(interaction, self.catalog.settings):
+            await notify(interaction, "Tu n'as pas accès aux cours sur ce serveur.")
+            return
+        if hasattr(self.catalog, 'clear_cache'):
+            self.catalog.clear_cache()
+        await notify(interaction, "✨ Cache de l'explorateur de cours actualisé avec succès !", private=True)
 
 
 async def setup(bot):

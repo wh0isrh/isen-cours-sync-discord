@@ -1,4 +1,4 @@
-"""Lanceur autonome optionnel avec auto-montage Rclone OneDrive."""
+"""Lanceur autonome avec auto-montage Rclone OneDrive."""
 import logging
 import os
 import subprocess
@@ -20,8 +20,6 @@ def ensure_onedrive_mount():
             rclone = Path.home() / 'bin' / 'rclone'
             if not rclone.is_file():
                 rclone = Path('/opt/isen-cours/bin/rclone')
-            if not rclone.is_file():
-                rclone = 'rclone'
             cours_dir.mkdir(parents=True, exist_ok=True)
             subprocess.run([
                 str(rclone), 'mount',

@@ -58,7 +58,17 @@ class AuthenticationExpired(RuntimeError):
     pass
 
 
+def fix_mojibake(value: str) -> str:
+    if any(c in value for c in ("\u00c3", "\u00c2", "\u00e2")):
+        try:
+            return value.encode("latin-1").decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            pass
+    return value
+
+
 def clean_name(value: str, filename: bool = False) -> str:
+    value = fix_mojibake(value)
     value = unicodedata.normalize("NFC", value)
     value = re.sub(r'[<>:"/\\|?*\x00-\x1f]', " - ", value)
     value = re.sub(r"\s+", " ", value).strip().rstrip(". ") or "Général"
@@ -134,6 +144,7 @@ class Config:
     wol_mac: str = ""
     wol_broadcast: str = "255.255.255.255"
     wol_wait: int = 120
+    fast_remote_check: bool = True
 
     @classmethod
     def load(cls, env_path: Path):
@@ -170,6 +181,7 @@ class Config:
             boolean(values, "VERIFY_REMOTE_HASH", True), boolean(values, "STRICT_SOURCE_VALIDATION", False),
             boolean(values, "BOOTSTRAP_AUDIT", True), audit,
             local_only=boolean(values, "LOCAL_ONLY", False),
+            fast_remote_check=boolean(values, "FAST_REMOTE_CHECK", True),
             wol_mac=values.get("WOL_MAC", "").strip(),
             wol_broadcast=values.get("WOL_BROADCAST", "255.255.255.255").strip(),
             wol_wait=positive_int(values, "WOL_WAIT_SECONDS", 120, maximum=600),
@@ -389,12 +401,7 @@ class SameOriginRedirect(HTTPRedirectHandler):
         if "/login/" in p.path:
             fp.close()
             raise AuthenticationExpired("Session Junia expirée. Relancer pour se reconnecter.")
-        redirected = super().redirect_request(request, fp, code, msg, headers, newurl)
-        # Python 3.10/3.11 convertissent certains HEAD redirigés en GET.
-        # Conserver HEAD pour vérifier une ressource sans télécharger son contenu.
-        if redirected is not None and request.get_method() == "HEAD":
-            redirected.method = "HEAD"
-        return redirected
+        return super().redirect_request(request, fp, code, msg, headers, newurl)
 
 
 @dataclass
@@ -546,6 +553,8 @@ class RemoteStore:
         self.root = cfg.remote_dir
         self.ledger_path = posixpath.join(self.root, ".sync_moodle_manifest.json")
         self.records = {}
+        self.verified = {}
+        self.known_dirs = set()
         self.mkdirs(self.root)
         if self.attributes(self.ledger_path):
             with self.sftp.open(self.ledger_path, "rb") as stream:
@@ -568,24 +577,44 @@ class RemoteStore:
         return posixpath.join(self.root, safe_relative(relative))
 
     def mkdirs(self, directory):
+        if directory in self.known_dirs:
+            return
         current = "/"
         for part in PurePosixPath(directory).parts[1:]:
             current = posixpath.join(current, part)
+            if current in self.known_dirs:
+                continue
             attrs = self.attributes(current)
             if attrs is None:
                 self.sftp.mkdir(current)
             elif not stat.S_ISDIR(attrs.st_mode):
                 raise IOError(f"Le chemin distant n'est pas un répertoire : {current}")
+            self.known_dirs.add(current)
+        self.known_dirs.add(directory)
 
     def digest(self, path):
         with self.sftp.open(path, "rb") as stream:
+            if isinstance(stream, paramiko.SFTPFile):
+                # Plusieurs lectures en vol évitent un aller-retour SSH par bloc.
+                stream.prefetch(max_concurrent_requests=8)
             return sha_stream(stream)
 
     def matches(self, relative, size, digest=None):
         attrs = self.attributes(self.remote(relative))
         if not attrs or not stat.S_ISREG(attrs.st_mode) or attrs.st_size != size:
             return False
-        return not (self.cfg.verify_hash and digest) or self.digest(self.remote(relative)) == digest
+        if not (self.cfg.verify_hash and digest):
+            return True
+        fingerprint = {"size": size, "mtime": getattr(attrs, "st_mtime_ns", attrs.st_mtime), "sha256": digest}
+        cached = self.verified.get(relative) or self.records.get(relative, {}).get("verified_remote")
+        if getattr(self.cfg, "fast_remote_check", False) and attrs.st_mtime is not None and cached == fingerprint:
+            return True
+        if self.digest(self.remote(relative)) != digest:
+            return False
+        self.verified[relative] = fingerprint
+        if relative in self.records:
+            self.records[relative]["verified_remote"] = fingerprint
+        return True
 
     def promote(self, temporary, destination):
         existing = self.attributes(destination)
@@ -625,6 +654,10 @@ class RemoteStore:
             if self.cfg.verify_hash and self.digest(temporary) != digest:
                 raise IOError("Empreinte SHA-256 incorrecte après transfert SFTP")
             self.promote(temporary, destination)
+            self.verified.pop(relative, None)
+            if self.cfg.verify_hash:
+                attrs = self.attributes(destination)
+                self.verified[relative] = {"size": size, "mtime": getattr(attrs, "st_mtime_ns", attrs.st_mtime), "sha256": digest}
         except BaseException:
             try:
                 self.sftp.remove(temporary)
@@ -635,6 +668,8 @@ class RemoteStore:
     def remember(self, relative, size, digest, url="", meta=None):
         record = self.records.setdefault(relative, {"sources": {}})
         record.update(size=size, sha256=digest)
+        if relative in self.verified and self.verified[relative]["sha256"] == digest:
+            record["verified_remote"] = self.verified[relative]
         if url and ("/pluginfile.php/" in urlsplit(url).path or "/mod/resource/" in urlsplit(url).path):
             record.setdefault("sources", {})[canonical_url(url)] = {
                 "size": size, "etag": meta.etag if meta else "",
@@ -721,20 +756,21 @@ class Synchronizer:
         if not self.cfg.bootstrap or not self.cfg.audit_dir.is_dir():
             return
         LOG.info("Amorçage depuis l'audit local : seuls les fichiers distants absents sont envoyés.")
-        for entry in seed:
-            relative = safe_relative(entry["relative_path"])
+        for number, entry in enumerate(seed, 1):
+            relative = safe_relative(fix_mojibake(entry["relative_path"]))
             local = self.cfg.audit_dir / Path(*PurePosixPath(relative).parts)
             if not local.is_file():
-                continue
+                raw_local = self.cfg.audit_dir / Path(*PurePosixPath(safe_relative(entry["relative_path"])).parts)
+                if raw_local.is_file():
+                    local = raw_local
+                else:
+                    continue
             try:
+                LOG.info("Audit %d/%d : vérification de %s", number, len(seed), relative)
                 attrs = self.store.attributes(self.store.remote(relative))
                 if attrs:
-                    # Un audit ancien ne doit jamais remplacer une version plus récente.
-                    if relative in self.store.records and self.store.matches(relative, self.store.records[relative]["size"], self.store.records[relative].get("sha256")):
-                        self.summary.mark(relative)
-                    elif attrs.st_size == entry["size"] and self.store.matches(relative, entry["size"], entry["sha256"]):
+                    if relative not in self.store.records and attrs.st_size == entry["size"]:
                         self.store.remember(relative, entry["size"], entry["sha256"])
-                        self.summary.mark(relative)
                     continue
                 if local.stat().st_size != entry["size"] or sha_file(local) != entry["sha256"]:
                     raise IOError("Le fichier de l'audit local a changé")
@@ -745,6 +781,7 @@ class Synchronizer:
                 LOG.info("Audit envoyé : %s", relative)
             except Exception as exc:
                 self.error(relative, exc)
+        LOG.info("Vérification de l'audit terminée ; sauvegarde du manifest.")
         self.store.save(self.temp)
 
     def file(self, resource):
@@ -755,10 +792,6 @@ class Synchronizer:
         self.seen_files.add(seen_key)
         meta = self.http.head(resource.url)
         relative = resource.prefix + meta.name
-        if relative in self.store.records or self.store.attributes(self.store.remote(relative)) is not None:
-            self.summary.mark(relative)
-            LOG.info("Ignoré (déjà présent) : %s", relative)
-            return
         record = None
         for candidate, saved in self.store.records.items():
             if candidate.startswith(resource.prefix) and identity in saved.get("sources", {}):
@@ -766,11 +799,9 @@ class Synchronizer:
                 break
         audited = self.store.records.get(relative)
         if not record and audited and not audited.get("sources") and meta.size is not None and self.store.matches(relative, meta.size, audited.get("sha256")):
-            # L'audit fournit déjà une empreinte connue : adoption du lien courant
-            # après vérification distante, sans nouveau téléchargement HTTP.
             self.store.remember(relative, meta.size, audited.get("sha256"), resource.url, meta)
             self.summary.mark(relative)
-            LOG.info("Ignoré (audit déjà présent et vérifié) : %s", relative)
+            LOG.info("Ignoré (déjà présent sur le serveur) : %s", relative)
             return
         if record and meta.size is not None:
             before = record["sources"][identity]
