@@ -148,6 +148,8 @@ class Config:
     wol_wait: int = 120
     fast_remote_check: bool = True
     save_notes: bool = False
+    local_storage: bool = False
+    headless: bool = False
 
     @classmethod
     def load(cls, env_path: Path):
@@ -156,22 +158,34 @@ class Config:
             raise ValueError(f"Configuration créée : {env_path}. Renseigner Ubuntu puis relancer.")
         values = {**dotenv_values(env_path), **os.environ}
         values = {k: (v or "") for k, v in values.items()}
-        root = values.get("UBUNTU_REMOTE_DIR", "").strip()
-        if not root.startswith("/") or root == "/" or ".." in PurePosixPath(root).parts:
-            raise ValueError("UBUNTU_REMOTE_DIR doit être un dossier absolu Ubuntu, différent de /.")
-        host, user = values.get("UBUNTU_HOST", "").strip(), values.get("UBUNTU_USER", "").strip()
-        if not host or not user:
-            raise ValueError("Renseigner UBUNTU_HOST et UBUNTU_USER dans .env")
+        root = values.get("UBUNTU_REMOTE_DIR", "").strip() or values.get("COURS_DIR", "").strip()
+        local_storage_default = (sys.platform != "win32" or not values.get("UBUNTU_HOST") or values.get("UBUNTU_HOST") in {"127.0.0.1", "localhost", "local"})
+        local_storage = boolean(values, "LOCAL_STORAGE", local_storage_default)
+        if not local_storage:
+            if not root.startswith("/") or root == "/" or ".." in PurePosixPath(root).parts:
+                raise ValueError("UBUNTU_REMOTE_DIR doit être un dossier absolu Ubuntu, différent de /.")
+            host, user = values.get("UBUNTU_HOST", "").strip(), values.get("UBUNTU_USER", "").strip()
+            if not host or not user:
+                raise ValueError("Renseigner UBUNTU_HOST et UBUNTU_USER dans .env")
+        else:
+            host, user = "localhost", "local"
+            if not root:
+                root = "/srv/cours_isen/ISEN_Lille_2026-2027"
+
         key = values.get("UBUNTU_SSH_KEY_PATH", "").strip()
-        if key:
+        if key and not local_storage:
             key = str(Path(os.path.expandvars(key)).expanduser())
             if not Path(key).is_absolute():
                 key = str(APP_DIR / key)
             if not Path(key).is_file():
                 raise ValueError("UBUNTU_SSH_KEY_PATH : fichier de clé privée introuvable")
+
         audit = Path(os.path.expandvars(values.get("AUDIT_DIR", "") or str(APP_DIR.parent / "ISEN_Lille_2026-2027"))).expanduser()
         if not audit.is_absolute():
             audit = APP_DIR / audit
+
+        headless_default = (not bool(os.environ.get("DISPLAY"))) if sys.platform != "win32" else False
+        headless = boolean(values, "HEADLESS", headless_default)
         return cls(
             values.get("JUNIA_EMAIL", ""), values.get("JUNIA_PASSWORD", ""),
             positive_int(values, "WAIT_2FA_SECONDS", 15, minimum=0, maximum=600),
@@ -186,6 +200,8 @@ class Config:
             local_only=boolean(values, "LOCAL_ONLY", False),
             fast_remote_check=boolean(values, "FAST_REMOTE_CHECK", True),
             save_notes=boolean(values, "SAVE_NOTES", False),
+            local_storage=local_storage,
+            headless=headless,
             wol_mac=values.get("WOL_MAC", "").strip(),
             wol_broadcast=values.get("WOL_BROADCAST", "255.255.255.255").strip(),
             wol_wait=positive_int(values, "WOL_WAIT_SECONDS", 120, maximum=600),
@@ -423,13 +439,23 @@ def extract_mfa_code(page) -> str | None:
     return None
 
 
-def microsoft_login(context, cfg):
+def microsoft_login(context, cfg, on_mfa_code=None, on_status=None):
     page = context.pages[0] if context.pages else context.new_page()
     page.goto(MOODLE + "/my/", wait_until="domcontentloaded", timeout=60000)
     if is_moodle_logged_in(page):
         LOG.info("Session Junia déjà ouverte.")
+        if on_status:
+            try:
+                on_status("Session Junia déjà ouverte.")
+            except Exception:
+                pass
         return page
     LOG.info("Connexion Junia dans Chromium. Vous pouvez intervenir dans la fenêtre.")
+    if on_status:
+        try:
+            on_status("Connexion Junia dans Chromium...")
+        except Exception:
+            pass
     deadline = time.monotonic() + cfg.login_timeout
     sent_email = sent_password = False
     announced = False
@@ -442,6 +468,11 @@ def microsoft_login(context, cfg):
         for candidate in context.pages:
             if is_moodle_logged_in(candidate):
                 LOG.info("Authentification Junia confirmée.")
+                if on_status:
+                    try:
+                        on_status("Authentification Junia confirmée.")
+                    except Exception:
+                        pass
                 return candidate
         active = next((p for p in reversed(context.pages) if not p.is_closed()), page)
         host = urlsplit(active.url).hostname or ""
@@ -472,6 +503,11 @@ def microsoft_login(context, cfg):
                     announced_mfa_code = code
                     print("\n" + format_mfa_banner(code), flush=True)
                     LOG.info(">>> CODE MICROSOFT AUTHENTICATOR (A2F) : [ %s ] <<<", code)
+                    if on_mfa_code:
+                        try:
+                            on_mfa_code(code)
+                        except Exception as exc:
+                            LOG.warning("Erreur callback on_mfa_code : %s", exc)
 
             # La notification peut arriver après la saisie manuelle du mot de passe.
             if not announced and (sent_password or announced_mfa_code or active.get_by_text(re.compile("Authenticator|approuv|approve|vérifi.*identité", re.I)).count()):
@@ -494,6 +530,11 @@ def microsoft_login(context, cfg):
                     announced_mfa_code = code
                     print("\n" + format_mfa_banner(code), flush=True)
                     LOG.info(">>> CODE MICROSOFT AUTHENTICATOR (A2F) : [ %s ] <<<", code)
+                    if on_mfa_code:
+                        try:
+                            on_mfa_code(code)
+                        except Exception as exc:
+                            LOG.warning("Erreur callback on_mfa_code : %s", exc)
             remaining = max(0, int(countdown_until - time.monotonic() + 0.999))
             if remaining != last_second:
                 print(f"\rAttente A2F : {remaining:2d} seconde(s)   ", end="", flush=True)
@@ -683,6 +724,99 @@ def parse_links(html, url, course, section):
     if enrolled:
         blocked = True
     return result, text, blocked
+
+
+class LocalStore:
+    """Stockage direct sur disque (ex: sur VPS avec OneDrive monté via Rclone)."""
+    def __init__(self, root: Path | str, cfg=None):
+        self.root = Path(root).resolve()
+        self.cfg = cfg
+        self.ledger_path = self.root / ".sync_moodle_manifest.json"
+        self.records = {}
+        self.verified = {}
+        self.known_dirs = set()
+        self.root.mkdir(parents=True, exist_ok=True)
+        if self.ledger_path.is_file():
+            try:
+                with self.ledger_path.open("r", encoding="utf-8") as stream:
+                    data = json.load(stream)
+                if data.get("version") == 1 and isinstance(data.get("files"), dict):
+                    for relative, record in data["files"].items():
+                        safe_relative(relative)
+                        self.records[relative] = record
+            except Exception as exc:
+                LOG.warning("Lecture manifest local : %s", exc)
+
+    def attributes(self, path):
+        p = Path(path) if Path(path).is_absolute() else self.root / safe_relative(str(path).replace("\\", "/"))
+        try:
+            return p.stat() if p.exists() else None
+        except OSError:
+            return None
+
+    def remote(self, relative):
+        return str((self.root / safe_relative(relative)).as_posix())
+
+    def mkdirs(self, directory):
+        p = Path(directory) if Path(directory).is_absolute() else self.root / safe_relative(directory)
+        p.mkdir(parents=True, exist_ok=True)
+
+    def digest(self, path):
+        p = Path(path) if Path(path).is_absolute() else self.root / safe_relative(path)
+        return sha_file(p)
+
+    def matches(self, relative, size, digest=None):
+        p = self.root / safe_relative(relative)
+        if not p.is_file():
+            return False
+        stat_val = p.stat()
+        if stat_val.st_size != size:
+            return False
+        if not ((self.cfg.verify_hash if self.cfg else True) and digest):
+            return True
+        fingerprint = {"size": size, "mtime": getattr(stat_val, "st_mtime_ns", stat_val.st_mtime), "sha256": digest}
+        cached = self.verified.get(relative) or self.records.get(relative, {}).get("verified_remote")
+        if (getattr(self.cfg, "fast_remote_check", True) if self.cfg else True) and cached == fingerprint:
+            return True
+        if sha_file(p) != digest:
+            return False
+        self.verified[relative] = fingerprint
+        if relative in self.records:
+            self.records[relative]["verified_remote"] = fingerprint
+        return True
+
+    def upload(self, source, relative, size, digest):
+        target = self.root / safe_relative(relative)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        part = target.parent / (f".{target.name}.part-{uuid.uuid4().hex}")
+        shutil.copy2(source, part)
+        stat_val = part.stat()
+        if stat_val.st_size != size:
+            part.unlink(missing_ok=True)
+            raise IOError("Taille incorrecte après copie locale")
+        if (self.cfg.verify_hash if self.cfg else True) and sha_file(part) != digest:
+            part.unlink(missing_ok=True)
+            raise IOError("Empreinte SHA-256 incorrecte après copie locale")
+        part.replace(target)
+        self.verified[relative] = {"size": size, "mtime": getattr(stat_val, "st_mtime_ns", stat_val.st_mtime), "sha256": digest}
+        self.remember(relative, size, digest)
+
+    def remember(self, relative, size, digest, url="", meta=None):
+        record = self.records.setdefault(relative, {"sources": {}})
+        record.update(size=size, sha256=digest)
+        if relative in self.verified and self.verified[relative]["sha256"] == digest:
+            record["verified_remote"] = self.verified[relative]
+        if url and ("/pluginfile.php/" in urlsplit(url).path or "/mod/resource/" in urlsplit(url).path):
+            record.setdefault("sources", {})[canonical_url(url)] = {
+                "size": size, "etag": meta.etag if meta else "",
+                "modified": meta.modified if meta else "",
+            }
+
+    def save(self, directory=None):
+        part = self.root / (f".manifest-{uuid.uuid4().hex}.tmp")
+        data = {"version": 1, "files": self.records}
+        part.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        part.replace(self.ledger_path)
 
 
 class RemoteStore:
@@ -1259,32 +1393,71 @@ def main(argv=None):
     else:
         target_courses = COURSES
 
-    configure_logging(cfg)
-    LOG.info("Matière(s) ciblée(s) (%d/%d) : %s", len(target_courses), len(COURSES), ", ".join(c[1] for c in target_courses))
+def run_sync(cfg: Config, target_courses: list | None = None, local_only: bool = False, force_moodle: bool = False,
+             on_mfa_code=None, on_progress=None, on_status=None) -> tuple[Summary, int]:
+    if target_courses is None:
+        target_courses = COURSES
     summary, client, sftp, store, context, lock = Summary(), None, None, None, None, None
     manifest_saved = False
     try:
         candidate = RunLock(cfg.state_dir / "run.lock")
         candidate.__enter__()
         lock = candidate
-        LOG.info("Connexion SFTP au démarrage : %s@%s:%s", cfg.user, cfg.host, cfg.port)
-        client, sftp = ssh_connect(cfg)
-        store = RemoteStore(sftp, cfg)
-        if args.local_only or (cfg.local_only and not args.moodle):
+
+        if cfg.local_storage:
+            LOG.info("Stockage direct sur disque : %s", cfg.remote_dir)
+            if on_status:
+                try:
+                    on_status(f"Stockage local : {cfg.remote_dir}")
+                except Exception:
+                    pass
+            store = LocalStore(Path(cfg.remote_dir), cfg)
+        else:
+            LOG.info("Connexion SFTP au démarrage : %s@%s:%s", cfg.user, cfg.host, cfg.port)
+            if on_status:
+                try:
+                    on_status(f"Connexion SFTP : {cfg.user}@{cfg.host}:{cfg.port}")
+                except Exception:
+                    pass
+            client, sftp = ssh_connect(cfg)
+            store = RemoteStore(sftp, cfg)
+
+        if local_only or (cfg.local_only and not force_moodle):
             LOG.info("Mode local : aucune ressource supprimée ne sera téléchargée à nouveau.")
+            if on_status:
+                try:
+                    on_status("Mode local...")
+                except Exception:
+                    pass
             sync_local(store, cfg, summary, target_courses)
         else:
+            if on_status:
+                try:
+                    on_status("Lancement du navigateur Chromium...")
+                except Exception:
+                    pass
             with sync_playwright() as playwright:
+                launch_args = ["--disable-blink-features=AutomationControlled", "--no-sandbox", "--disable-dev-shm-usage"]
                 context = playwright.chromium.launch_persistent_context(
-                    str(cfg.state_dir / "browser-profile"), headless=False,
-                    accept_downloads=True, viewport={"width": 1280, "height": 850},
+                    str(cfg.state_dir / "browser-profile"), headless=cfg.headless,
+                    args=launch_args, accept_downloads=True, viewport={"width": 1280, "height": 850},
                 )
                 try:
-                    microsoft_login(context, cfg)
+                    microsoft_login(context, cfg, on_mfa_code=on_mfa_code, on_status=on_status)
                     synchronizer = Synchronizer(MoodleHTTP(context, cfg), store, cfg, summary)
+                    if on_status:
+                        try:
+                            on_status("Amorçage de l'audit...")
+                        except Exception:
+                            pass
                     synchronizer.bootstrap_audit()
                     for number, (course_id, name) in enumerate(target_courses, 1):
                         LOG.info("Progression : cours %d/%d (%s)", number, len(target_courses), name)
+                        if on_progress:
+                            try:
+                                on_progress(number, len(target_courses), name)
+                            except Exception:
+                                pass
                         synchronizer.course(course_id, name)
                     store.save(synchronizer.temp)
                     manifest_saved = True
@@ -1304,7 +1477,7 @@ def main(argv=None):
                 directory.mkdir(parents=True, exist_ok=True)
                 store.save(directory)
             except Exception as exc:
-                summary.errors.append({"resource": "Manifest distant", "error": str(exc)})
+                summary.errors.append({"resource": "Manifest", "error": str(exc)})
         if sftp:
             sftp.close()
         if client:
@@ -1312,7 +1485,46 @@ def main(argv=None):
         report(summary, cfg)
         if lock:
             lock.__exit__(None, None, None)
-    return 1 if summary.errors else 0
+    return summary, (1 if summary.errors else 0)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--env", type=Path, default=APP_DIR / ".env")
+    parser.add_argument("--check-config", action="store_true", help="Valider le fichier .env sans connexion réseau")
+    parser.add_argument("--local-only", action="store_true", help="Synchroniser uniquement les cours conservés sur le PC, sans Moodle")
+    parser.add_argument("--moodle", action="store_true", help="Relancer la découverte Moodle même si LOCAL_ONLY=true")
+    parser.add_argument("--course", "-c", action="append", dest="courses", default=[],
+                        help="Matière(s) à synchroniser (nom, numéro ou ID Moodle). Répétable.")
+    parser.add_argument("--all", "-a", action="store_true", help="Synchroniser toutes les matières sans confirmation")
+    parser.add_argument("selected_courses", nargs="*",
+                        help="Nom(s) ou numéro(s) de matière(s) à synchroniser (ex: Automatique ou 3)")
+    args = parser.parse_args(argv)
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    try:
+        cfg = Config.load(args.env)
+    except (ValueError, OSError) as exc:
+        print(f"Configuration : {exc}")
+        return 2
+    if args.check_config:
+        dest = cfg.remote_dir if cfg.local_storage else f"{cfg.user}@{cfg.host}:{cfg.port}:{cfg.remote_dir}"
+        print(f"Configuration valide : destination {dest}")
+        print(f"Connexion Junia : {'email configuré' if cfg.email else 'manuelle dans le navigateur'}")
+        return 0
+
+    targets = (args.courses or []) + (args.selected_courses or [])
+    if targets:
+        target_courses = resolve_course_selection(COURSES, targets)
+    elif not args.all and sys.stdin.isatty():
+        target_courses = prompt_course_selection(COURSES)
+    else:
+        target_courses = COURSES
+
+    configure_logging(cfg)
+    LOG.info("Matière(s) ciblée(s) (%d/%d) : %s", len(target_courses), len(COURSES), ", ".join(c[1] for c in target_courses))
+    summary, exit_code = run_sync(cfg, target_courses=target_courses, local_only=args.local_only, force_moodle=args.moodle)
+    return exit_code
 
 
 if __name__ == "__main__":

@@ -42,6 +42,11 @@ class CoursesBot(commands.Bot):
 
     async def setup_hook(self):
         await self.load_extension('course_browser')
+        try:
+            await self.load_extension('moodle_sync_bot')
+            logging.info('Extension moodle_sync_bot chargée.')
+        except Exception as exc:
+            logging.warning('Impossible de charger moodle_sync_bot : %s', exc)
         commands_synced = await self.tree.sync()
         logging.info('%s commande(s) globale(s) enregistrée(s)', len(commands_synced))
         guild_id = os.environ.get('DISCORD_GUILD_ID', '').strip()

@@ -325,8 +325,24 @@ class LogicTests(unittest.TestCase):
         banner = app.format_mfa_banner("42")
         self.assertIn("CODE MICROSOFT AUTHENTICATOR (A2F)", banner)
         self.assertIn("[  4 2  ]", banner)
-        # Vérification qu'aucune exception d'encodage ne survient sur ascii
         banner.encode("ascii")
+
+    def test_local_store_upload_matches_and_save(self):
+        store_root = self.root / "local_store"
+        store = app.LocalStore(store_root, self.cfg)
+        local_file = self.root / "test.pdf"
+        local_file.write_bytes(b"%PDF-test-local-store")
+        digest = app.sha_file(local_file)
+        relative = "Automatique/TD1/test.pdf"
+        self.assertFalse(store.matches(relative, len(b"%PDF-test-local-store"), digest))
+        store.upload(local_file, relative, len(b"%PDF-test-local-store"), digest)
+        self.assertTrue(store.matches(relative, len(b"%PDF-test-local-store"), digest))
+        self.assertTrue((store_root / relative).is_file())
+        store.save()
+        reloaded = app.LocalStore(store_root, self.cfg)
+        self.assertIn(relative, reloaded.records)
+        self.assertEqual(reloaded.records[relative]["sha256"], digest)
+
 
 
 
