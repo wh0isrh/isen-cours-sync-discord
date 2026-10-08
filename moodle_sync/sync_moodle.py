@@ -462,7 +462,7 @@ def microsoft_login(context, cfg, on_mfa_code=None, on_status=None):
     announced_mfa_code = None
     countdown_until = None
     last_second = None
-    clicked_sso = False
+    last_logged_url = ""
     while time.monotonic() < deadline:
         # Certains portails ouvrent la connexion Microsoft dans une seconde page.
         for candidate in context.pages:
@@ -475,6 +475,16 @@ def microsoft_login(context, cfg, on_mfa_code=None, on_status=None):
                         pass
                 return candidate
         active = next((p for p in reversed(context.pages) if not p.is_closed()), page)
+        current_url = active.url
+        if current_url != last_logged_url:
+            last_logged_url = current_url
+            LOG.info("Étape courante : %s [%s]", current_url, active.title())
+            if on_status:
+                try:
+                    on_status(f"Page : {active.title() or urlsplit(current_url).path}")
+                except Exception:
+                    pass
+
         host = urlsplit(active.url).hostname or ""
         if host in {"login.microsoftonline.com", "login.live.com", "login.windows.net"}:
             tile = active.locator(f"[data-test-id*='{cfg.email}'], [role='button']:has-text('{cfg.email}')").filter(has_text=cfg.email)
@@ -533,14 +543,31 @@ def microsoft_login(context, cfg, on_mfa_code=None, on_status=None):
                             on_status("📱 Validez la demande sur votre application mobile Microsoft...")
                         except Exception:
                             pass
-        elif host == "junia-learning.com" and not clicked_sso:
-            # Lien vérifié sur la page publique Junia : « J'ai une adresse mail Junia ».
+        elif host == "junia-learning.com":
             sso = active.locator("a[href*='/auth/oidc/']")
             if not sso.count():
                 sso = active.locator("a").filter(has_text=re.compile("Microsoft|Office.?365|compte.*JUNIA|Connexion.*JUNIA|adresse.*mail.*JUNIA", re.I))
             if sso.count() and sso.first.is_visible():
-                sso.first.click(timeout=10000)
-                clicked_sso = True
+                href = sso.first.get_attribute("href")
+                if href and href.startswith("http"):
+                    try:
+                        active.goto(href, wait_until="domcontentloaded", timeout=15000)
+                    except Exception:
+                        try:
+                            sso.first.click(timeout=5000)
+                        except Exception:
+                            pass
+                else:
+                    try:
+                        sso.first.click(timeout=5000)
+                    except Exception:
+                        pass
+            else:
+                try:
+                    active.goto("https://junia-learning.com/auth/oidc/?source=loginpage", wait_until="domcontentloaded", timeout=15000)
+                except Exception:
+                    pass
+            active.wait_for_timeout(1000)
         if countdown_until:
             if not announced_mfa_code:
                 code = extract_mfa_code(active)
