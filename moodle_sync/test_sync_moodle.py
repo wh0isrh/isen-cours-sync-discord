@@ -321,6 +321,14 @@ class LogicTests(unittest.TestCase):
         # Cible vide -> retourne l'ensemble
         self.assertEqual(app.resolve_course_selection(app.COURSES, []), app.COURSES)
 
+    def test_mfa_code_banner_and_formatting(self):
+        banner = app.format_mfa_banner("42")
+        self.assertIn("CODE MICROSOFT AUTHENTICATOR (A2F)", banner)
+        self.assertIn("[  4 2  ]", banner)
+        # Vérification qu'aucune exception d'encodage ne survient sur ascii
+        banner.encode("ascii")
+
+
 
 class FixtureHTTP(BaseHTTPRequestHandler):
     gets = 0

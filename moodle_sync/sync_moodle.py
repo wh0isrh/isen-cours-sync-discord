@@ -327,6 +327,102 @@ def fill_visible(page, selector, value):
     return False
 
 
+DIGIT_ART = {
+    "0": [" ### ", "#   #", "#   #", "#   #", " ### "],
+    "1": ["  #  ", " ##  ", "  #  ", "  #  ", " ### "],
+    "2": [" ### ", "#   #", "   # ", "  #  ", "#####"],
+    "3": ["#####", "   # ", " ### ", "   # ", "#####"],
+    "4": ["#   #", "#   #", "#####", "    #", "    #"],
+    "5": ["#####", "#    ", "#### ", "    #", "#### "],
+    "6": [" ### ", "#    ", "#### ", "#   #", " ### "],
+    "7": ["#####", "   # ", "  #  ", " #   ", " #   "],
+    "8": [" ### ", "#   #", " ### ", "#   #", " ### "],
+    "9": [" ### ", "#   #", " ####", "    #", " ### "],
+}
+
+
+def format_mfa_banner(code: str) -> str:
+    lines = ["", "=" * 66, ""]
+    lines.append("   [!] CODE MICROSOFT AUTHENTICATOR (A2F) :")
+    lines.append("")
+    if all(c in DIGIT_ART for c in code):
+        for row in range(5):
+            art_row = "    ".join(DIGIT_ART[c][row] for c in code)
+            lines.append(f"            {art_row}")
+    lines.append("")
+    spaced = " ".join(code)
+    lines.append(f"                 >>>  [  {spaced}  ]  <<<")
+    lines.append("")
+    lines.append("   >> Entrez ce numero dans Microsoft Authenticator sur votre smartphone <<")
+    lines.append("=" * 66)
+    lines.append("")
+    return "\n".join(lines)
+
+
+def extract_mfa_code(page) -> str | None:
+    """Extraire le code à 2 chiffres affiché sur la page Microsoft Authenticator."""
+    try:
+        code = page.evaluate("""() => {
+            const ids = [
+                'idRichChallange_DisplaySign',
+                'richChallangeText',
+                'displaySign',
+                'idRemoteNGC_DisplaySign',
+                'idRichChallenge_DisplaySign'
+            ];
+            for (const id of ids) {
+                const el = document.getElementById(id);
+                if (el) {
+                    const txt = (el.innerText || el.textContent || '').trim();
+                    if (/^\\d{1,3}$/.test(txt)) return txt;
+                }
+            }
+            const querySelectors = [
+                '[data-test-id="richChallangeText"]',
+                '[data-test-id="displaySign"]',
+                '.displaySign',
+                '.rich-challenge',
+                '[data-bind*="displaySign"]'
+            ];
+            for (const sel of querySelectors) {
+                const el = document.querySelector(sel);
+                if (el) {
+                    const txt = (el.innerText || el.textContent || '').trim();
+                    if (/^\\d{1,3}$/.test(txt)) return txt;
+                }
+            }
+            const container = document.querySelector('#idDiv_SAOTCAS_Title, #idDiv_SAOTCC_Description, #idRichChallange, .inner, .prompts, form') || document.body;
+            if (container) {
+                const candidates = container.querySelectorAll('div, span, strong, b');
+                for (const c of candidates) {
+                    if (c.children.length === 0) {
+                        const txt = (c.innerText || c.textContent || '').trim();
+                        if (/^\\d{2}$/.test(txt)) {
+                            const rect = c.getBoundingClientRect();
+                            if (rect.width > 0 && rect.height > 0) return txt;
+                        }
+                    }
+                }
+            }
+            return null;
+        }""")
+        if code and re.fullmatch(r"\d{1,3}", str(code)):
+            return str(code)
+    except Exception:
+        pass
+
+    for sel in ("#idRichChallange_DisplaySign", "#richChallangeText", ".displaySign", "#displaySign"):
+        try:
+            loc = page.locator(sel)
+            if loc.count():
+                txt = loc.first.inner_text().strip()
+                if re.fullmatch(r"\d{1,3}", txt):
+                    return txt
+        except Exception:
+            pass
+    return None
+
+
 def microsoft_login(context, cfg):
     page = context.pages[0] if context.pages else context.new_page()
     page.goto(MOODLE + "/my/", wait_until="domcontentloaded", timeout=60000)
@@ -337,6 +433,7 @@ def microsoft_login(context, cfg):
     deadline = time.monotonic() + cfg.login_timeout
     sent_email = sent_password = False
     announced = False
+    announced_mfa_code = None
     countdown_until = None
     last_second = None
     clicked_sso = False
@@ -367,11 +464,21 @@ def microsoft_login(context, cfg):
                 if check.count() and check.first.is_visible() and not check.first.is_checked():
                     check.first.check()
                 kmsi.first.click()
+
+            # Détection et affichage en grand du code A2F
+            if not announced_mfa_code:
+                code = extract_mfa_code(active)
+                if code:
+                    announced_mfa_code = code
+                    print("\n" + format_mfa_banner(code), flush=True)
+                    LOG.info(">>> CODE MICROSOFT AUTHENTICATOR (A2F) : [ %s ] <<<", code)
+
             # La notification peut arriver après la saisie manuelle du mot de passe.
-            if not announced and (sent_password or active.get_by_text(re.compile("Authenticator|approuv|approve|vérifi.*identité", re.I)).count()):
+            if not announced and (sent_password or announced_mfa_code or active.get_by_text(re.compile("Authenticator|approuv|approve|vérifi.*identité", re.I)).count()):
                 announced = True
                 countdown_until = countdown_until or time.monotonic() + cfg.wait_2fa
-                LOG.info("Validez l'A2F Microsoft sur votre smartphone (le numéro est dans le navigateur).")
+                if not announced_mfa_code:
+                    LOG.info("Validez l'A2F Microsoft sur votre smartphone (le numéro est dans le navigateur).")
         elif host == "junia-learning.com" and not clicked_sso:
             # Lien vérifié sur la page publique Junia : « J'ai une adresse mail Junia ».
             sso = active.locator("a[href*='/auth/oidc/']")
@@ -381,6 +488,12 @@ def microsoft_login(context, cfg):
                 sso.first.click(timeout=10000)
                 clicked_sso = True
         if countdown_until:
+            if not announced_mfa_code:
+                code = extract_mfa_code(active)
+                if code:
+                    announced_mfa_code = code
+                    print("\n" + format_mfa_banner(code), flush=True)
+                    LOG.info(">>> CODE MICROSOFT AUTHENTICATOR (A2F) : [ %s ] <<<", code)
             remaining = max(0, int(countdown_until - time.monotonic() + 0.999))
             if remaining != last_second:
                 print(f"\rAttente A2F : {remaining:2d} seconde(s)   ", end="", flush=True)
