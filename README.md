@@ -4,12 +4,26 @@ Ce projet permet de récupérer les supports accessibles sur Junia Learning depu
 
 Le dépôt contient uniquement du code, des tests et des exemples de configuration. Il ne contient aucun cours, mot de passe, token Discord, profil navigateur ou adresse réelle du serveur d'origine. Chaque personne doit configurer ses propres accès.
 
+## Deux modes de fonctionnement au choix
+
+Le projet supporte nativement deux architectures selon vos besoins :
+
+### 1. Mode PC à domicile (Windows + SFTP)
+- **Où il tourne :** Sur votre ordinateur Windows personnel à la maison.
+- **Fonctionnement :** Lancez simplement `sync_moodle.bat`. Chromium s'ouvre sous vos yeux, le code A2F s'affiche en grand dans votre terminal, et les cours sont transférés par SFTP vers votre serveur / VPS ou sauvegardés localement.
+- **Aucune dépendance VPS requise :** Pas besoin de Discord, pas de montage Linux obligatoire.
+- **Version figée dédiée :** La branche **`pc-domicile`** et le tag **`v1.0-pc-domicile`** sont conservés sur GitHub pour garantir la disponibilité de la version historique indépendante du VPS.
+
+### 2. Mode VPS Cloud (Autonome + Discord `/sync`)
+- **Où il tourne :** Sur un VPS Ubuntu connecté en continu.
+- **Fonctionnement :** Chromium s'exécute en arrière-plan (`headless`). Vous tapez `/sync` dans Discord : dès que Microsoft demande l'A2F, le bot extrait le numéro à 2 chiffres et vous ping en temps réel sur Discord. Une fois validé, les cours sont directement enregistrés et synchronisés sur OneDrive via Rclone.
+
 ## Les trois briques
 
 | Brique | Où elle tourne | Ce qu'elle fait |
 | --- | --- | --- |
-| `moodle_sync/` | Windows | Connexion Microsoft visible avec A2F, téléchargement en flux et transfert SFTP vers Ubuntu |
-| `discord_courses/` | Ubuntu | Menus Matière → Chapitre → Fichier, Retour, Actualiser et pagination |
+| `moodle_sync/` | Windows ou VPS | Connexion Microsoft avec A2F, téléchargement en flux et stockage SFTP ou local |
+| `discord_courses/` | Ubuntu / VPS | Menus `/cours` et déclencheur `/sync` avec envoi du code A2F |
 | FileBrowser + passerelle + Cloudflare Tunnel | Ubuntu, optionnel | Consultation web protégée et liens directs temporaires pour les gros documents |
 
 Les cours sont rangés comme ceci :
@@ -28,11 +42,9 @@ COURS_DIR/
 
 ## Par où commencer ?
 
-- Tu as déjà les fichiers sur Ubuntu : commence par le bot Discord.
-- Tu veux récupérer les cours depuis Moodle : commence par la synchronisation Windows.
-- Tu veux télécharger les gros fichiers depuis n'importe où : ajoute la partie HTTPS après avoir vérifié que le bot fonctionne.
-
-Guides détaillés : [Windows et Moodle](docs/WINDOWS_MOODLE.md), [bot et serveur Ubuntu](docs/UBUNTU_DISCORD.md), [FileBrowser et liens HTTPS](docs/FILEBROWSER_CLOUDFLARE.md).
+- Tu es sur ta **machine à domicile** : consulte le guide [Windows et Moodle](docs/WINDOWS_MOODLE.md) (utilise la branche `main` ou la branche `pc-domicile`).
+- Tu déploies sur un **VPS / serveur Cloud** : consulte [bot et serveur Ubuntu](docs/UBUNTU_DISCORD.md).
+- Tu veux télécharger les gros fichiers depuis n'importe où : ajoute la partie HTTPS avec [FileBrowser et liens HTTPS](docs/FILEBROWSER_CLOUDFLARE.md).
 
 ## Démarrage rapide du bot
 
