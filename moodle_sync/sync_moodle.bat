@@ -12,7 +12,7 @@ if errorlevel 1 (
 )
 
 if not exist ".venv\Scripts\python.exe" (
-    echo Le venv Python est absent. Lancer setup_windows.bat une premi?re fois.
+    echo Le venv Python est absent. Lancer setup_windows.bat une première fois.
     pause
     exit /b 2
 )
@@ -25,13 +25,13 @@ if not exist "..\ISEN_Lille_2026-2027" goto end_script
 
 echo.
 echo ========================================================
-echo Envoi instantan? vers OneDrive avec Rclone...
+echo Envoi instantané vers OneDrive avec Rclone...
 echo ========================================================
 "%RCLONE_BIN%" copy "..\ISEN_Lille_2026-2027" "onedrive:Cours_ISEN/ISEN_Lille_2026-2027" --transfers 4 --fast-list
-echo Synchronisation OneDrive termin?e avec succ?s !
+echo Synchronisation OneDrive terminée avec succès !
 
 :end_script
 echo.
-echo Fin de l'ex?cution. Code de sortie : %SYNC_EXIT_CODE%
+echo Fin de l'exécution. Code de sortie : %SYNC_EXIT_CODE%
 pause
 exit /b %SYNC_EXIT_CODE%

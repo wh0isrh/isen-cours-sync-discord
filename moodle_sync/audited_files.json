@@ -1,1 +1,882 @@
-[]
+[
+  {
+    "relative_path": "Modélisation de systèmes déterministes et aléatoires/1 - le concept de signal/fr_signaux_handout.pdf",
+    "size": 6973156,
+    "sha256": "096b0c807b8d114ef8fc6d67bce10b6773bd8377aea8a3b9d95bc10e3e37262d",
+    "course": "Modélisation de systèmes déterministes et aléatoires",
+    "section": "1 - le concept de signal",
+    "source_url": "https://junia-learning.com/course/section.php?id=37884"
+  },
+  {
+    "relative_path": "Modélisation de systèmes déterministes et aléatoires/1 - le concept de signal/td_signaux_etu.pdf",
+    "size": 126096,
+    "sha256": "452fc0a9a76b680e470709c2cc3b566455d66f76bc9ccafd5dc0808e370cf595",
+    "course": "Modélisation de systèmes déterministes et aléatoires",
+    "section": "1 - le concept de signal",
+    "source_url": "https://junia-learning.com/course/section.php?id=37884"
+  },
+  {
+    "relative_path": "Modélisation de systèmes déterministes et aléatoires/1 - le concept de signal/tp_signaux.zip",
+    "size": 506617,
+    "sha256": "c109da85890c5ad01f12a247e2d5003222b15eb17621881c08b3bc0400e3c5a1",
+    "course": "Modélisation de systèmes déterministes et aléatoires",
+    "section": "1 - le concept de signal",
+    "source_url": "https://junia-learning.com/course/section.php?id=37884"
+  },
+  {
+    "relative_path": "Modélisation de systèmes déterministes et aléatoires/2 - transformation de Laplace/fr_laplace_handout.pdf",
+    "size": 8536938,
+    "sha256": "850d9d50adabb4203d528402ad8e97dadddf8cf6931550979a1bb852c0d01645",
+    "course": "Modélisation de systèmes déterministes et aléatoires",
+    "section": "2 - transformation de Laplace",
+    "source_url": "https://junia-learning.com/course/section.php?id=37885"
+  },
+  {
+    "relative_path": "Modélisation de systèmes déterministes et aléatoires/2 - transformation de Laplace/td_laplace_etu.pdf",
+    "size": 112802,
+    "sha256": "3688b36c7a926599086215543a7e6f5582dad42cfb104d2572af614d04dbe066",
+    "course": "Modélisation de systèmes déterministes et aléatoires",
+    "section": "2 - transformation de Laplace",
+    "source_url": "https://junia-learning.com/course/section.php?id=37885"
+  },
+  {
+    "relative_path": "Automatique/Général/Téléchargement MATLAB.pdf",
+    "size": 65523,
+    "sha256": "1aa430616ca1f1f1301c2f9436b4ae56ff4d91c4adb2bcd67be0ebb7f03c5a9b",
+    "course": "Automatique",
+    "section": "Général",
+    "source_url": "https://junia-learning.com/mod/resource/view.php?id=94143"
+  },
+  {
+    "relative_path": "Automatique/Automatique continue - Polys cours et Tds/Auto Continu 2025-2026 Resume Eleves HEI3 impression.pdf",
+    "size": 2890595,
+    "sha256": "336dd5a8b5a3376c27ad8508e41729a6e715c6e0b0bbb1bce574a53acb23e675",
+    "course": "Automatique",
+    "section": "Automatique continue - Polys cours et Tds",
+    "source_url": "https://junia-learning.com/mod/folder/view.php?id=94148"
+  },
+  {
+    "relative_path": "Automatique/Automatique continue - Polys cours et Tds/poly cours 2025-2026.pdf",
+    "size": 6610290,
+    "sha256": "51c2841ce08bef85604ba8655ede0376214081b8a54fca8b97b0bf4df781952a",
+    "course": "Automatique",
+    "section": "Automatique continue - Polys cours et Tds",
+    "source_url": "https://junia-learning.com/mod/folder/view.php?id=94148"
+  },
+  {
+    "relative_path": "Automatique/Automatique continue - Polys cours et Tds/TD_Auto_Continue_25-26.pdf",
+    "size": 3938460,
+    "sha256": "618426d341ce80284ede83f21c863ea635c4fdbc280b884a6cd29e6ac83f90ba",
+    "course": "Automatique",
+    "section": "Automatique continue - Polys cours et Tds",
+    "source_url": "https://junia-learning.com/mod/folder/view.php?id=94148"
+  },
+  {
+    "relative_path": "Automatique/Automatique Continue - Chapitre 1/Chapitre1.pdf",
+    "size": 1470966,
+    "sha256": "5884e79d359110e3c3f641c262517c060731aaf16643561cedf7b10b7bfca4dc",
+    "course": "Automatique",
+    "section": "Automatique Continue - Chapitre 1",
+    "source_url": "https://junia-learning.com/course/section.php?id=39805"
+  },
+  {
+    "relative_path": "Automatique/Automatique Continue - Chapitre 2/Chapitre2.pdf",
+    "size": 879360,
+    "sha256": "e44575a228e3259d2c301c801879bfcf2dbea851768b991c44f717ce1ff4071a",
+    "course": "Automatique",
+    "section": "Automatique Continue - Chapitre 2",
+    "source_url": "https://junia-learning.com/course/section.php?id=39806"
+  },
+  {
+    "relative_path": "Automatique/Automatique Continue - Chapitre 3/Chapitre3.pdf",
+    "size": 852453,
+    "sha256": "20d05ace9d82f77312e73277553178335c5dccb46b61841c33ded954b46a9e81",
+    "course": "Automatique",
+    "section": "Automatique Continue - Chapitre 3",
+    "source_url": "https://junia-learning.com/course/section.php?id=39807"
+  },
+  {
+    "relative_path": "Automatique/Automatique Continue - Chapitre 4/Chapitre4.pdf",
+    "size": 5616236,
+    "sha256": "a98460e7e2569a744c18c02776b4dae227738e186abd52439177e670f4c5baa3",
+    "course": "Automatique",
+    "section": "Automatique Continue - Chapitre 4",
+    "source_url": "https://junia-learning.com/course/section.php?id=39808"
+  },
+  {
+    "relative_path": "Automatique/Automatique Continue - Chapitre 5/Chapitre5.pdf",
+    "size": 736909,
+    "sha256": "99966ca47d12458033f26ea5925bf3a55a633a27f5edf8455b009c4bf8c28427",
+    "course": "Automatique",
+    "section": "Automatique Continue - Chapitre 5",
+    "source_url": "https://junia-learning.com/course/section.php?id=39809"
+  },
+  {
+    "relative_path": "Automatique/Automatique Continue - Chapitre 6/chapitre6.pdf",
+    "size": 1638247,
+    "sha256": "7d35d0bee18feb6dd816743085a1ee9f64c7dd8ceecafa8d32b51f4f9f8c8df6",
+    "course": "Automatique",
+    "section": "Automatique Continue - Chapitre 6",
+    "source_url": "https://junia-learning.com/course/section.php?id=39810"
+  },
+  {
+    "relative_path": "Automatique/Automatique Continue - Chapitre 7/Chapitre7.pdf",
+    "size": 1264102,
+    "sha256": "4b3c8d7c54874b90c0fc36daaba5f764adb7529b86f1b423e99976781b1fc4e0",
+    "course": "Automatique",
+    "section": "Automatique Continue - Chapitre 7",
+    "source_url": "https://junia-learning.com/course/section.php?id=39811"
+  },
+  {
+    "relative_path": "Automatique/Automatique Continue - Chapitre 8/Chapitre8.pdf",
+    "size": 1068777,
+    "sha256": "089163ef87db748f5e8c87b42ae0a04b18dfcdd23d65c3b01025d1412df2e061",
+    "course": "Automatique",
+    "section": "Automatique Continue - Chapitre 8",
+    "source_url": "https://junia-learning.com/course/section.php?id=39812"
+  },
+  {
+    "relative_path": "Mécanique Quantique/Chapitre 1 et 2 - La physique à la veille du XXe siècle/2526_MecaQ I et II - Physique Classique - D.Mele (student).pdf",
+    "size": 9433300,
+    "sha256": "86d4414090920e606bcff72f878c4bdc87578d79de37677809b4abbdadaf2399",
+    "course": "Mécanique Quantique",
+    "section": "Chapitre 1 et 2 - La physique à la veille du XXe siècle",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/Chapitre 1 et 2 - La physique à la veille du XXe siècle/MecaQ I et II - Physique Classique - D.Mele (animé).ppsx",
+    "size": 61734486,
+    "sha256": "8b382c442a48c12ca7efa489e24c5b5cd9010eea89e914f4e8ea4887637853d4",
+    "course": "Mécanique Quantique",
+    "section": "Chapitre 1 et 2 - La physique à la veille du XXe siècle",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/Chapitre 1 et 2 - La physique à la veille du XXe siècle/MecaQ I et II - Physique Classique - D.Mele.pdf",
+    "size": 9326565,
+    "sha256": "b84d78aac3dae5ccf6f80709a30860a840b6e61d6794d795038f093014d9f1f5",
+    "course": "Mécanique Quantique",
+    "section": "Chapitre 1 et 2 - La physique à la veille du XXe siècle",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/Chapitre 3 - La révolution quantique/2526_MecaQ III - La révolution quantique (student).pdf",
+    "size": 5964650,
+    "sha256": "a57139ee8c38252b7cd8752b36124d951fd737e631bae86f59366b74da808cb2",
+    "course": "Mécanique Quantique",
+    "section": "Chapitre 3 - La révolution quantique",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/Chapitre 3 - La révolution quantique/2526_MecaQ III - La révolution quantique (student) - variante E07DA0B8.pdf",
+    "size": 5887758,
+    "sha256": "e07da0b8892b9fe4c0ebf7440f2db8f51616960ff8c0d8ef3d98b3f641fa9d81",
+    "course": "Mécanique Quantique",
+    "section": "Chapitre 3 - La révolution quantique",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/Chapitre 3 - La révolution quantique/MecaQ III - Quanta (animé).ppsx",
+    "size": 132490213,
+    "sha256": "350dd771b471ea443bbebb2ba03e66a821ab7738ceab31e1aed7322be5cde674",
+    "course": "Mécanique Quantique",
+    "section": "Chapitre 3 - La révolution quantique",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/Chapitre 3 - La révolution quantique/2526_MecaQ III - Démonstrations.pdf",
+    "size": 2049610,
+    "sha256": "ec887ce0f063d9474c72caec05374b572e96e0f28308736d0edc067fd7f2d4a8",
+    "course": "Mécanique Quantique",
+    "section": "Chapitre 3 - La révolution quantique",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/Chapitre 4 - Fonction d'onde et équation de Schrödinger/2526_MecaQ IV - Fonction donde et equation de Schrodinger - D.Mele (student).pdf",
+    "size": 6103184,
+    "sha256": "76afe67539b76e771752dc16db1e02c080257504773900c96420bb9e7d467e47",
+    "course": "Mécanique Quantique",
+    "section": "Chapitre 4 - Fonction d'onde et équation de Schrödinger",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/Chapitre 4 - Fonction d'onde et équation de Schrödinger/2526_MecaQ IV - Fonction donde et equation de Schrodinger - D.Mele (student) - variante BF1C8308.pdf",
+    "size": 5993982,
+    "sha256": "bf1c8308611b0c4df2921022f54236999da88dae80a3ec38ce60e7fd9b057d57",
+    "course": "Mécanique Quantique",
+    "section": "Chapitre 4 - Fonction d'onde et équation de Schrödinger",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/Chapitre 4 - Fonction d'onde et équation de Schrödinger/MecaQ IV - Fonction donde et equation de Schrodinger (animé).ppsx",
+    "size": 51488351,
+    "sha256": "77315218b4a1fd9cc4561d5f973aec0233a60780b105f7782c1d07f33f106bcb",
+    "course": "Mécanique Quantique",
+    "section": "Chapitre 4 - Fonction d'onde et équation de Schrödinger",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/TD1 Effet photoelectrique.pdf",
+    "size": 736605,
+    "sha256": "d138f594d0de770662dd431027789569d36574d6f87d75fe8bbeb4dfa60f255e",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/TD2 Diffraction de particules.pdf",
+    "size": 343127,
+    "sha256": "4d9866a2014167b4a1fcac755d290da2389b29c1a5c972d07f50dfd7b3b6fd96",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/TD3_particule_libre.pdf",
+    "size": 213633,
+    "sha256": "cbd0e7a988e2f55004098f62cc5dcb5527a8987eb763bdd0352eccd55e227d02",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/TD4_Puits infini.pdf",
+    "size": 172533,
+    "sha256": "cc4fe188e5e56bc9db915c686e18cb5e93ee38aa99f14bab50606fd4e6e6f5e1",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/TD5 - Barrière de potentiel - Effet Tunnel.pdf",
+    "size": 222065,
+    "sha256": "ef12bdbe306e59d1c9807a563079219ca41bd817a40ccb3a8776565d0fc828ed",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/TD6 - Formalisme en Mécanique Quantique.pdf",
+    "size": 199488,
+    "sha256": "8080949b33e00ad11a02bdc58983baf085649adbe7951bd952fd9e6df940ab50",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/TD7 - Oscillateur harmonique.pdf",
+    "size": 217696,
+    "sha256": "351b5807b3da6f6e100359707223bc9db92bcdb9cfc1fa9e82409105da61b98a",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/TD8 - Mesure en Physique Quantique - cas de 2 opérateurs.pdf",
+    "size": 105604,
+    "sha256": "f9214e3763be16d5c4ecc5e54b38f19487dc17d2ab0dca726cbc9e07eafca692",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/TD9-Polarisatin_des_photons.pdf",
+    "size": 833427,
+    "sha256": "a810a1e37c071b700ad41073a9a177007d59a8e3fa1b5f8abd354c0d1cb798e0",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/Liens Youtube.pdf",
+    "size": 879373,
+    "sha256": "d00b5a7958b09a4e6a29b56e7e3b2231f9d93e949d512ff17d1bf00bf27083a9",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/Liens Outils de simulation.pdf",
+    "size": 1454540,
+    "sha256": "fb4ac69f0fd5f8d91ad1bc5e7b5a56eb8824294ae9ea5b8913ec64213915050e",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/Glossaire MécaQ.pdf",
+    "size": 2304933,
+    "sha256": "9948ef146e343725a44c83372f6a96276c7f3806c229ea8a45b42b29b85b39c5",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/2023.10.17_MécaQ_Interro_suj.pdf",
+    "size": 497881,
+    "sha256": "0b8827ba1cfbe194b3ec5b067efa0d553e31d13b94601160bdc80eb655a55a2d",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/2023.11.21_MécaQ_DS_suj.pdf",
+    "size": 592458,
+    "sha256": "82f442b9fc06c691a3f84ca91b82db208be5e99c234d074c26f2b47b56002a06",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/2023.12.18_MécaQ_Partiel_suj_v2.pdf",
+    "size": 610899,
+    "sha256": "a60b516925bb9e2f5c4661b9bb065e02ce5f48bd8b4c64992578baf81080ff91",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/2023.12.18_Partiel_cor_élément de réponses.pdf",
+    "size": 404992,
+    "sha256": "dd7e49c2a5445c3b061752cc8c5bbfe5bce5fdf3f3e68c9a64c41f73b2ecc6a8",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/2024.09.30_Interro_suj.pdf",
+    "size": 516602,
+    "sha256": "5a2ca3f76399106cb6854a5829f06b6a242a9191e170f3e868d8ea3ed28b64ef",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/2024.11.04_DS_suj.pdf",
+    "size": 589227,
+    "sha256": "9dda34911b94ffba4816ebae738971e1afd9acea3ed3784966d18d162cf45e7e",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/2024.12.20_Partiel_suj.pdf",
+    "size": 954714,
+    "sha256": "985bac9e8d986e29c608504ee1ff3a16ced2a679a29749c920480838b2be388d",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/2024.12.20_Partiel_cor_student.pdf",
+    "size": 441196,
+    "sha256": "331d974a9c2a83f0055a8aca923402126ba464e80e9dcb7086f54f1cc6dcd766",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/2025.09.29_Interro_suj.pdf",
+    "size": 466615,
+    "sha256": "ffc22bfbeefadccdabf8f8971b469f873f6ac1a49563910c6d43f1f7ad985704",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/2025.11.03_DS_suj.pdf",
+    "size": 346162,
+    "sha256": "f3a2307160e1439e29bd4df76cf26de4d4a585bd1b5c74f68df8abe97d7c5dcf",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/2025.12.19_partiel_suj.pdf",
+    "size": 399578,
+    "sha256": "15dca3c9f6f21255279396779cea5c103a6f8410eb44a70a2bd74f8a3f6a8ec1",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/2025.12.15_partiel_guidé.pdf",
+    "size": 808627,
+    "sha256": "9b61d4e750514f83504d81baf7608126844c67b905aa93bd79211833a58090ea",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/ADI3 - Rappels d Ondes (Mele).pdf",
+    "size": 3562427,
+    "sha256": "e8e3e1ccdc71a095ec0b252ac21b08cd5b0b84d6dd6cb167a7e22a5a2c1cf418",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/Rappels - Onde progressive.png",
+    "size": 1403674,
+    "sha256": "5a6cf6708e63d09dccb547330e31cb8431c77e9b9dfeecf751e7e800765fd58e",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/Rappels - Nombres complexes.png",
+    "size": 1443628,
+    "sha256": "253d1be05b5882765a96e2956d6631be4f73675dcfc78f1079d3e729469776f4",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/Rappels - Equa diff.png",
+    "size": 1201673,
+    "sha256": "c2e80831f2318ac33951f2eb8dbd1b35d17c6ccce227e5111defc9332474493a",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/Rappels dualité onde corpuscule.png",
+    "size": 191317,
+    "sha256": "f37555027953e3e276ac91c2cc53050ed2100fe9a77fd74a0eccd828cf44c30b",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/Rappel experiences phares naissance mecaQ.png",
+    "size": 118719,
+    "sha256": "76e847bdf698aaf42d5bafe9f0cb9dae0872da0ac185d9992cb004306d53ea54",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/2526_MecaQ IV - Fonction donde et equation de Schrodinger - D.Mele.png",
+    "size": 184152,
+    "sha256": "db8e99e3ae1c81f0a92b083eb2097e37cc6f2c64ad071846ee694048a81250d9",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/Chap4 - 1 anatomie d eléquation de Schrodinger.png",
+    "size": 80745,
+    "sha256": "26ba6d239a02711bb1f1304e3daad2c83cfe17386ddf7276f50d546742fbaf11",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/chap4 _ 3.png",
+    "size": 167730,
+    "sha256": "b89e366136b674aed174881f0b4606b30cfd52db25f2af7dc7052215ee7d7e53",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/Notice Installation Player_2.JPG",
+    "size": 58663,
+    "sha256": "93bc17e3adedf4773a2fa297b454fb2424c598ccfde629471f8dd0523f690c51",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/Notice_Installation_Player_1.JPG",
+    "size": 66543,
+    "sha256": "b4ace05d0c9192e1f6f42f3c2f4d127d8c15d3af65ebef372a56925bbcde896a",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/ThePhotoelectricEffect.cdf",
+    "size": 90574,
+    "sha256": "39c11964c4114121060a22c5bc3d94e7d3aa298d3e7e112678a3978144e44035",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/SingleMoleculeMovie(1).mp4",
+    "size": 2743209,
+    "sha256": "6814b663122e78ea5e573924405b273dfaae006343f988dac179740f5cd3ab80",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/Fourie_MakingWaves.jar",
+    "size": 1468774,
+    "sha256": "96099f71923cbe1a9dfc8c897d870a8c061cfbcf2d3f581b4f45cf5c15295acf",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/TimeEvolutionOfTheWavefunctionInA1DInfiniteSquareWell.cdf",
+    "size": 89301,
+    "sha256": "f65e66f693b7834451f2e951e683f461739163afabe0d81944e43d6d9c7aa3f1",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/quantum-tunneling_en.jnlp",
+    "size": 944,
+    "sha256": "150d1873464a8ebf65ba0f873dfab4a47df96f3a7e4a1b38cf3d5a0227a68529",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/quantum-tunneling_fr.jar",
+    "size": 1740206,
+    "sha256": "191857bb0a2d81d68a25096d7e1aab18bbcfc93517422a2ad549ae7c140fb6cc",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/Cours de physique des ondes - Prépa (Mele).pdf",
+    "size": 3562427,
+    "sha256": "e8e3e1ccdc71a095ec0b252ac21b08cd5b0b84d6dd6cb167a7e22a5a2c1cf418",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Mécanique Quantique/TDs, exams, ressources/Rappels - Oscilllateur.png",
+    "size": 1540740,
+    "sha256": "ea6de2d9ec1b83d57fbed4b9f4b6241fc2a02e2e3ede07f9ab93d685b40ccb16",
+    "course": "Mécanique Quantique",
+    "section": "TDs, exams, ressources",
+    "source_url": "https://junia-learning.com/course/view.php?id=19337"
+  },
+  {
+    "relative_path": "Electronique Numérique/Chapitre ENFPGA1 - outils de base/ENFPGA1-2026.pdf",
+    "size": 1433148,
+    "sha256": "0c8d9ccce9a0453c4e8ac9e9b5c82c2b8eeccaa34b989c6a2c65cd706a638747",
+    "course": "Electronique Numérique",
+    "section": "Chapitre ENFPGA1: outils de base",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Chapitre ENFPGA1 - outils de base/ENFPGA1-2024-exercices.pdf",
+    "size": 381648,
+    "sha256": "f4510d8a1c85f2c3173b418ddcc3934c8b1ed905a8055dd71a8d1a910543870c",
+    "course": "Electronique Numérique",
+    "section": "Chapitre ENFPGA1: outils de base",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Chapitre ENFPGA1 - outils de base/ENFPGA1-2024-exercices - solution.pdf",
+    "size": 810896,
+    "sha256": "b82d242a7c3fe8145cdf2ca75361a66d3a8dd76eda3406946a57b9ebcc5738e9",
+    "course": "Electronique Numérique",
+    "section": "Chapitre ENFPGA1: outils de base",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Chapitre ENFPGA2 - circuits combinatoires I (décodeurs-multiplexeurs)/ENFPGA2-2024-split.pdf",
+    "size": 2439006,
+    "sha256": "cd75a9999fc4ffa3944b0b966e5ec4784085496969542934c0291269a8d0b97e",
+    "course": "Electronique Numérique",
+    "section": "Chapitre ENFPGA2: circuits combinatoires I (décodeurs-multiplexeurs)",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Chapitre ENFPGA2 - circuits combinatoires I (décodeurs-multiplexeurs)/multiplexeur8-1decodeur2-4.pdf",
+    "size": 212032,
+    "sha256": "b3de59b5dd94ee054c67cb9aaef1f7809418a5e5e24c91bb477906182b933886",
+    "course": "Electronique Numérique",
+    "section": "Chapitre ENFPGA2: circuits combinatoires I (décodeurs-multiplexeurs)",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Chapitre ENFPGA2 - circuits combinatoires I (décodeurs-multiplexeurs)/exos-decodeur-mux.pdf",
+    "size": 181426,
+    "sha256": "74f4ffba93fd374c2c7f392548d8434ec4d1bc30c6ac7e3a41215cfa7748b8cc",
+    "course": "Electronique Numérique",
+    "section": "Chapitre ENFPGA2: circuits combinatoires I (décodeurs-multiplexeurs)",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Chapitre ENFPGA2 - circuits combinatoires I (décodeurs-multiplexeurs)/exos-decodeur-mux_correction.pdf",
+    "size": 333821,
+    "sha256": "2f3978996ffb44b98a4f98e264bf750659aac08c0c03c6bff2e205336d7f9eb2",
+    "course": "Electronique Numérique",
+    "section": "Chapitre ENFPGA2: circuits combinatoires I (décodeurs-multiplexeurs)",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Chapitre ENFPGA3 - circuits combinatoires II (circuits arithmétiques)/ENFPGA3-2024-split.pdf",
+    "size": 2938254,
+    "sha256": "4e2ede0149d9d6eec6ff0f444fd8cff0e698d5802689c3ae97011a29ea0bd99c",
+    "course": "Electronique Numérique",
+    "section": "Chapitre ENFPGA3: circuits combinatoires II (circuits arithmétiques)",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Chapitre ENFPGA3 - circuits combinatoires II (circuits arithmétiques)/TD-ENFPGA3-2024.pdf",
+    "size": 215601,
+    "sha256": "10e6d48349022bee7424002d16977205f929256d4fdebb827c9cd65cc7962355",
+    "course": "Electronique Numérique",
+    "section": "Chapitre ENFPGA3: circuits combinatoires II (circuits arithmétiques)",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Chapitre ENFPGA4 - circuits séquentiels I/ENFPGA4-2024-split.pdf",
+    "size": 3859612,
+    "sha256": "c5edbf0c5d6a6feb3f9a7d1902c8782d44dfca4bdd7093b717554a5bcd43a0fa",
+    "course": "Electronique Numérique",
+    "section": "Chapitre ENFPGA4: circuits séquentiels I",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Chapitre ENFPGA4 - circuits séquentiels I/TD-ENFPGA4-2024.pdf",
+    "size": 256516,
+    "sha256": "ad8cb7e3462f7d18bef27d066460f14538c5c0d50b9557ae069bf72ec3f88d5d",
+    "course": "Electronique Numérique",
+    "section": "Chapitre ENFPGA4: circuits séquentiels I",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Chapitre ENFPGA5 - circuits séquentiels II/ENFPGA5-2024-split.pdf",
+    "size": 2424603,
+    "sha256": "10ab5a8a7c8d0d94c4b498b869e274fcd3ae38d0274e5b8696482f7375fe618e",
+    "course": "Electronique Numérique",
+    "section": "Chapitre ENFPGA5: circuits séquentiels II",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Chapitre ENFPGA5 - circuits séquentiels II/FSM_detection_fronts_montants.ppsx",
+    "size": 72304,
+    "sha256": "36f0fd78efc17befe140e9928bce452a390bcaefcfa1e6b81c4cc5218d41ed0d",
+    "course": "Electronique Numérique",
+    "section": "Chapitre ENFPGA5: circuits séquentiels II",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Chapitre ENFPGA5 - circuits séquentiels II/TD-ENFPGA5-2025.pdf",
+    "size": 240967,
+    "sha256": "03e66f35522fc037a0fd1ae9c4f60648373fe7fa8358ae96efa7454c62299aa0",
+    "course": "Electronique Numérique",
+    "section": "Chapitre ENFPGA5: circuits séquentiels II",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Travaux pratiques/installation_de_Quartus.pdf",
+    "size": 238726,
+    "sha256": "dbc361df7f05641d1ec6d64a3e3e825cd63fe4f74444482030bbe7d97aa0b99c",
+    "course": "Electronique Numérique",
+    "section": "Travaux pratiques",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Travaux pratiques/Sujet_TP_FPGA_IR.pdf",
+    "size": 3847728,
+    "sha256": "5b82d424784c9085dac42c989715207f8c2055a1831327a34c43626c968fc6c7",
+    "course": "Electronique Numérique",
+    "section": "Travaux pratiques",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Travaux pratiques/usb-blaster.7z",
+    "size": 380688,
+    "sha256": "7957b53cc04e22bed47d500280c5766019a5da44ab1b17dddde2da439f9e6d12",
+    "course": "Electronique Numérique",
+    "section": "Travaux pratiques",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Travaux pratiques/parametres_a_modifier_pour_Windows_11.pdf",
+    "size": 93788,
+    "sha256": "7040035dfbbd0bcbc5715d91369c38fca6bf4f545548dd39527d9905a6156c9e",
+    "course": "Electronique Numérique",
+    "section": "Travaux pratiques",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Travaux pratiques/pour_regler_pb_affichage_Quartus.pdf",
+    "size": 22702,
+    "sha256": "8d1443d01b866d6f4f268b38455a9b497c63b4466e2bbe8083c0c10502079e73",
+    "course": "Electronique Numérique",
+    "section": "Travaux pratiques",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Annales/ds_elec_num_CSI3-CIR3-CNB3-21-11-2023.pdf",
+    "size": 423878,
+    "sha256": "8e5733ee908387421c4a4e52dd2641cd5d3344d7f0640d5b97b4adb0edc24233",
+    "course": "Electronique Numérique",
+    "section": "Annales",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Annales/bareme_correction_ds_15-11-2022_bascules.pdf",
+    "size": 755607,
+    "sha256": "ad85683506f9dd5ce603997ba4bd3a85dfdf8b0498273582e288144bae4fd86c",
+    "course": "Electronique Numérique",
+    "section": "Annales",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Annales/ds_elec_num_CSI3-CIR3-CNB3-15-11-2022.pdf",
+    "size": 161212,
+    "sha256": "81834d7e5b7262006f43c70eb5a5f9edd9cce2dd2b7f882a80376f40f10e7219",
+    "course": "Electronique Numérique",
+    "section": "Annales",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Annales/electronique numérique FPGA-CSI3- 8 octobre 2024.pdf",
+    "size": 306150,
+    "sha256": "68fa75b08a01ef3c58dd56da4bc233908d36a104f921bb052bdbf9ee3e0cacd0",
+    "course": "Electronique Numérique",
+    "section": "Annales",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Annales/ds_elec_num_fpga_CSI3-21-10-2024.pdf",
+    "size": 290433,
+    "sha256": "b1dff820fd800994991e8def01a34043e01a04576144317051fccdb4b169e4c5",
+    "course": "Electronique Numérique",
+    "section": "Annales",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Annales/electronique numérique FPGA-CSI3- 30-09-2025 - correction et bareme.pdf",
+    "size": 843030,
+    "sha256": "90adf27c40786857c5b4c4fc308db67bc1132bf51e074f464b23095fc7b36e50",
+    "course": "Electronique Numérique",
+    "section": "Annales",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Annales/electronique numérique FPGA-CSI3- 05-11-2025_corrige.pdf",
+    "size": 567233,
+    "sha256": "6552bcc3183e361344d3f1995f41cd5966d0387bd16ece5155149372f6fe8a26",
+    "course": "Electronique Numérique",
+    "section": "Annales",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Annales/Corrigé - DS du 21 novembre 2023.pdf",
+    "size": 124679,
+    "sha256": "89bed354cf1f55a24d28ccdcd4ec5c4dc45051a4d11700547661b854465034b3",
+    "course": "Electronique Numérique",
+    "section": "Annales",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Annales/Corrigé - DS du 8 octobre 2024.pdf",
+    "size": 107122,
+    "sha256": "01203fb7943900392e179fdcb2409b1d9f1075cc6eaa69dfe9637a92f4995f8c",
+    "course": "Electronique Numérique",
+    "section": "Annales",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Electronique Numérique/Annales/Corrigé et barème - DS du 21 octobre 2024.pdf",
+    "size": 997462,
+    "sha256": "5cc4bb00d781e35ebd2719b863fab81272c4bd079ad698e7655958fc13d6749d",
+    "course": "Electronique Numérique",
+    "section": "Annales",
+    "source_url": "https://junia-learning.com/course/view.php?id=19336"
+  },
+  {
+    "relative_path": "Language interprété/Cours 0 - Introduction/C0_Introduction.pdf",
+    "size": 93723,
+    "sha256": "a051fcd047b3085de32bc1c53f8a84378ee5a84ef3ac97f660a0424c011d5810",
+    "course": "Language interprété",
+    "section": "Cours 0: Introduction",
+    "source_url": "https://junia-learning.com/course/view.php?id=19341"
+  },
+  {
+    "relative_path": "Language interprété/Cours 1 - Langages interprétés et écosystèmes modernes/C1_Langages_interpretes_et_ecosystemes_modernes.pdf",
+    "size": 290519,
+    "sha256": "09cf1db59da6a19837288655354b16a68b2af7e0850d861ea9b563df370f7940",
+    "course": "Language interprété",
+    "section": "Cours 1: Langages interprétés et écosystèmes modernes",
+    "source_url": "https://junia-learning.com/course/view.php?id=19341"
+  },
+  {
+    "relative_path": "Language interprété/Cours 1 - Langages interprétés et écosystèmes modernes/junia.png",
+    "size": 62243,
+    "sha256": "0297895d2b85c24e89f6a8db0d5ab1b3e3dc211abeada63b6a9d0850fc83360a",
+    "course": "Language interprété",
+    "section": "Cours 1: Langages interprétés et écosystèmes modernes",
+    "source_url": "https://junia-learning.com/course/view.php?id=19341"
+  },
+  {
+    "relative_path": "Language interprété/Cours 1 - Langages interprétés et écosystèmes modernes/TP1.pdf",
+    "size": 59587,
+    "sha256": "fee7fddd611aba7badc7573e711ef921c1bec070422ccb294771c6260b8e2cd9",
+    "course": "Language interprété",
+    "section": "Cours 1: Langages interprétés et écosystèmes modernes",
+    "source_url": "https://junia-learning.com/course/view.php?id=19341"
+  },
+  {
+    "relative_path": "Introduction à l'Intelligence artificielle/Général/ML_part1.pdf",
+    "size": 5344306,
+    "sha256": "e543957b8473ae1595dcd932740917c67a38d273d870e0603cbf49c27b9f291b",
+    "course": "Introduction à l'Intelligence artificielle",
+    "section": "Général",
+    "source_url": "https://junia-learning.com/course/view.php?id=19340"
+  },
+  {
+    "relative_path": "Introduction à l'Intelligence artificielle/Général/ML_part2.pdf",
+    "size": 1221088,
+    "sha256": "a794b1f6f4fad5b49d3c5475b5a74a5fbe5431fcb9ad2154caa810e35e828894",
+    "course": "Introduction à l'Intelligence artificielle",
+    "section": "Général",
+    "source_url": "https://junia-learning.com/course/view.php?id=19340"
+  },
+  {
+    "relative_path": "Base de Données/Première séance/Introduction to data bases - 1.pdf",
+    "size": 2526360,
+    "sha256": "d534b18af1bcf50f856193c489796c656ddac600c8d68f8ced0c6105989afbfb",
+    "course": "Base de Données",
+    "section": "Première séance",
+    "source_url": "https://junia-learning.com/course/view.php?id=19338"
+  },
+  {
+    "relative_path": "Base de Données/Deuxième séance/Introduction to data bases - 2.pdf",
+    "size": 733063,
+    "sha256": "c9bab183833f26120ce960bf11e12898e4564465597d287fc1df932b067ba17a",
+    "course": "Base de Données",
+    "section": "Deuxième séance",
+    "source_url": "https://junia-learning.com/course/view.php?id=19338"
+  },
+  {
+    "relative_path": "Base de Données/Deuxième séance/TD_MCD_MLD.pdf",
+    "size": 74782,
+    "sha256": "a558d028896504b186b8ec1693fbf63701059635337dbf9cb53b08aa0d0dd767",
+    "course": "Base de Données",
+    "section": "Deuxième séance",
+    "source_url": "https://junia-learning.com/course/view.php?id=19338"
+  },
+  {
+    "relative_path": "Enjeu des transitions/Présentation et planning/Enjeux Des transitions 2026-27 TD1 - V2.pdf",
+    "size": 1738262,
+    "sha256": "72e64ab9ef07f5d60765d3e1691242692ff0b4a8fa50b1f4518dc04001e1033f",
+    "course": "Enjeu des transitions",
+    "section": "Présentation et planning",
+    "source_url": "https://junia-learning.com/mod/resource/view.php?id=92993"
+  },
+  {
+    "relative_path": "Enjeu des transitions/TD1/TD1 - Enjeux des transitions (JUNIA learning).pdf",
+    "size": 687248,
+    "sha256": "6a173f687d10364b153dab0dddc06c18f879ea83fab450e042730f09060e02d0",
+    "course": "Enjeu des transitions",
+    "section": "TD1",
+    "source_url": "https://junia-learning.com/mod/resource/view.php?id=92994"
+  }
+]

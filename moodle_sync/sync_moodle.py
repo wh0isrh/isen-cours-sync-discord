@@ -23,7 +23,7 @@ import sys
 import time
 import unicodedata
 import uuid
-from collections import deque
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.message import Message
@@ -44,13 +44,15 @@ BLOCK = 1024 * 1024
 COURSES = [
     (19335, "Introduction à la conception des systèmes robotisés"),
     (19334, "Modélisation de systèmes déterministes et aléatoires"),
-    (19333, "Automatique"), (19337, "Mécanique Quantique"),
-    (19336, "Electronique Numérique"), (19341, "Language interprété"),
+    (19333, "Automatique"),
+    (19337, "Mécanique Quantique"),
+    (19336, "Electronique Numérique"),
+    (19341, "Language interprété"),
     (19340, "Introduction à l'Intelligence artificielle"),
-    (19338, "Base de Données"), (19343, "Projet Professionnel"),
-    (19342, "Anglais"), (19345, "Enjeu des transitions"),
+    (19338, "Base de Données"),
+    (19342, "Anglais"),
+    (19345, "Enjeu des transitions"),
     (19344, "Décryptage de l'information"),
-    (20846, "Valorisation de l'Engagement Sociétal"),
 ]
 
 
@@ -145,6 +147,7 @@ class Config:
     wol_broadcast: str = "255.255.255.255"
     wol_wait: int = 120
     fast_remote_check: bool = True
+    save_notes: bool = False
 
     @classmethod
     def load(cls, env_path: Path):
@@ -182,6 +185,7 @@ class Config:
             boolean(values, "BOOTSTRAP_AUDIT", True), audit,
             local_only=boolean(values, "LOCAL_ONLY", False),
             fast_remote_check=boolean(values, "FAST_REMOTE_CHECK", True),
+            save_notes=boolean(values, "SAVE_NOTES", False),
             wol_mac=values.get("WOL_MAC", "").strip(),
             wol_broadcast=values.get("WOL_BROADCAST", "255.255.255.255").strip(),
             wol_wait=positive_int(values, "WOL_WAIT_SECONDS", 120, maximum=600),
@@ -707,17 +711,25 @@ class Summary:
             self.skipped.add(relative)
 
 
-def sync_local(store, cfg, summary):
+def sync_local(store, cfg, summary, allowed_courses=None):
     """Envoyer exclusivement les fichiers encore présents, sans accès Moodle."""
     root = cfg.audit_dir.resolve()
     if not root.is_dir():
         raise FileNotFoundError(f"Dossier de cours absent : {root}")
+    allowed_names = {clean_name(name) for _, name in allowed_courses} if allowed_courses else None
     for local in sorted(root.rglob("*")):
         if local.is_symlink():
             raise ValueError(f"Lien symbolique refusé : {local}")
         if not local.is_file():
             continue
         relative = safe_relative(local.relative_to(root).as_posix())
+        course = relative.split("/")[0]
+        if course in {"_Inventaire", "Valorisation de l'Engagement Sociétal", "Projet Professionnel"}:
+            continue
+        if allowed_names and course not in allowed_names:
+            continue
+        if not getattr(cfg, "save_notes", True) and local.suffix.lower() == ".md":
+            continue
         try:
             size, digest = local.stat().st_size, sha_file(local)
             metadata = local.suffix.lower() in {".md", ".json"}
@@ -730,9 +742,7 @@ def sync_local(store, cfg, summary):
                 summary.bytes_sent += size
                 LOG.info("Envoyé : %s", relative)
             store.remember(relative, size, digest)
-            course = relative.split("/")[0]
-            if course != "_Inventaire":
-                summary.courses[course] = "fichiers locaux synchronisés"
+            summary.courses[course] = "fichiers locaux synchronisés"
         except Exception as exc:
             summary.errors.append({"resource": relative, "error": str(exc)})
             LOG.error("%s : %s", relative, exc)
@@ -743,8 +753,8 @@ class Synchronizer:
         self.http, self.store, self.cfg, self.summary = http, store, cfg, summary
         self.temp = cfg.state_dir / "temp"
         self.temp.mkdir(parents=True, exist_ok=True)
-        self.links = {name: [] for _, name in COURSES}
-        self.interactive = {name: [] for _, name in COURSES}
+        self.links = defaultdict(list)
+        self.interactive = defaultdict(list)
         self.seen_files = set()
 
     def error(self, label, exc):
@@ -859,6 +869,8 @@ class Synchronizer:
         temporary.unlink()  # Un échec garde le fichier local pour diagnostic/reprise.
 
     def note(self, relative, text):
+        if not getattr(self.cfg, "save_notes", True):
+            return
         path = self.temp / (uuid.uuid4().hex + ".md")
         path.write_text(text, encoding="utf-8")
         size, digest = path.stat().st_size, sha_file(path)
@@ -954,6 +966,8 @@ class Synchronizer:
         self.write_links(name)
 
     def write_links(self, name):
+        if not getattr(self.cfg, "save_notes", True):
+            return
         for collection, filename, heading in ((self.links[name], "liens_externes.md", "Liens externes"), (self.interactive[name], "activites_en_ligne.md", "Activités interactives en ligne")):
             unique = {r.url: r for r in collection}
             if not unique:
@@ -1012,12 +1026,74 @@ def report(summary, cfg):
     print(f"Rapport : {cfg.state_dir / 'dernier_rapport.json'}")
 
 
+def resolve_course_selection(available, targets):
+    """Filtre les cours selon les indices (1-based), ID Moodle ou portions de nom."""
+    if not targets:
+        return available
+    chosen = []
+    available_map = {str(i): c for i, c in enumerate(available, 1)}
+    id_map = {str(c[0]): c for c in available}
+    for target in targets:
+        target_str = str(target).strip()
+        if not target_str:
+            continue
+        # Indice numérique 1-based (ex: '3')
+        if target_str in available_map:
+            c = available_map[target_str]
+            if c not in chosen:
+                chosen.append(c)
+            continue
+        # ID numérique Moodle (ex: '19333')
+        if target_str in id_map:
+            c = id_map[target_str]
+            if c not in chosen:
+                chosen.append(c)
+            continue
+        # Correspondance textuelle insensible à la casse et aux accents (ex: 'auto', 'meca')
+        normalized_target = unicodedata.normalize("NFD", target_str.lower()).encode("ascii", "ignore").decode()
+        matched = False
+        for c in available:
+            norm_cname = unicodedata.normalize("NFD", c[1].lower()).encode("ascii", "ignore").decode()
+            if normalized_target in norm_cname:
+                if c not in chosen:
+                    chosen.append(c)
+                matched = True
+        if not matched:
+            LOG.warning("Aucune matière trouvée correspondant à '%s'", target_str)
+    return chosen or available
+
+
+def prompt_course_selection(available):
+    """Affiche le menu interactif de sélection des matières."""
+    print("\n" + "=" * 65)
+    print(" 📚 SÉLECTION DES MATIÈRES À SYNCHRONISER")
+    print("=" * 65)
+    for i, (cid, name) in enumerate(available, 1):
+        print(f"  [{i:2d}] {name}")
+    print("  [ A] Toutes les matières (par défaut)")
+    print("=" * 65)
+    try:
+        raw = input("\n👉 Choisir les numéros (ex: 3,4) ou 'A' / Entrée pour tout : ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print("\nAnnulation.")
+        sys.exit(0)
+    if not raw or raw.upper() in {"A", "ALL", "TOUT"}:
+        return available
+    tokens = [t.strip() for t in raw.replace(";", ",").split(",") if t.strip()]
+    return resolve_course_selection(available, tokens)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env", type=Path, default=APP_DIR / ".env")
     parser.add_argument("--check-config", action="store_true", help="Valider le fichier .env sans connexion réseau")
     parser.add_argument("--local-only", action="store_true", help="Synchroniser uniquement les cours conservés sur le PC, sans Moodle")
     parser.add_argument("--moodle", action="store_true", help="Relancer la découverte Moodle même si LOCAL_ONLY=true")
+    parser.add_argument("--course", "-c", action="append", dest="courses", default=[],
+                        help="Matière(s) à synchroniser (nom, numéro ou ID Moodle). Répétable.")
+    parser.add_argument("--all", "-a", action="store_true", help="Synchroniser toutes les matières sans confirmation")
+    parser.add_argument("selected_courses", nargs="*",
+                        help="Nom(s) ou numéro(s) de matière(s) à synchroniser (ex: Automatique ou 3)")
     args = parser.parse_args(argv)
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -1030,7 +1106,17 @@ def main(argv=None):
         print(f"Configuration valide : {cfg.user}@{cfg.host}:{cfg.port}, destination {cfg.remote_dir}")
         print(f"Connexion Junia : {'email configuré' if cfg.email else 'manuelle dans le navigateur'}")
         return 0
+
+    targets = (args.courses or []) + (args.selected_courses or [])
+    if targets:
+        target_courses = resolve_course_selection(COURSES, targets)
+    elif not args.all and sys.stdin.isatty():
+        target_courses = prompt_course_selection(COURSES)
+    else:
+        target_courses = COURSES
+
     configure_logging(cfg)
+    LOG.info("Matière(s) ciblée(s) (%d/%d) : %s", len(target_courses), len(COURSES), ", ".join(c[1] for c in target_courses))
     summary, client, sftp, store, context, lock = Summary(), None, None, None, None, None
     manifest_saved = False
     try:
@@ -1042,7 +1128,7 @@ def main(argv=None):
         store = RemoteStore(sftp, cfg)
         if args.local_only or (cfg.local_only and not args.moodle):
             LOG.info("Mode local : aucune ressource supprimée ne sera téléchargée à nouveau.")
-            sync_local(store, cfg, summary)
+            sync_local(store, cfg, summary, target_courses)
         else:
             with sync_playwright() as playwright:
                 context = playwright.chromium.launch_persistent_context(
@@ -1053,8 +1139,8 @@ def main(argv=None):
                     microsoft_login(context, cfg)
                     synchronizer = Synchronizer(MoodleHTTP(context, cfg), store, cfg, summary)
                     synchronizer.bootstrap_audit()
-                    for number, (course_id, name) in enumerate(COURSES, 1):
-                        LOG.info("Progression : cours %d/%d", number, len(COURSES))
+                    for number, (course_id, name) in enumerate(target_courses, 1):
+                        LOG.info("Progression : cours %d/%d (%s)", number, len(target_courses), name)
                         synchronizer.course(course_id, name)
                     store.save(synchronizer.temp)
                     manifest_saved = True

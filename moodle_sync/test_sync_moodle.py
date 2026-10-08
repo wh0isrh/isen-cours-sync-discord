@@ -112,13 +112,13 @@ class LogicTests(unittest.TestCase):
         self.assertFalse(deleted.errors)
 
     def test_wol_packet_and_wait_until_ssh_available(self):
-        cfg = SimpleNamespace(wol_mac='00:11:22:33:44:55', host='192.0.2.10',
-                              port=22, wol_broadcast='255.255.255.255', wol_wait=5)
+        cfg = SimpleNamespace(wol_mac='00:24:81:36:96:36', host='192.168.1.18',
+                              port=22, wol_broadcast='192.168.1.255', wol_wait=5)
         with patch.object(app.socket, 'create_connection', side_effect=[OSError('off'), unittest.mock.MagicMock()]), patch.object(app.socket, 'socket') as sock:
             app.wake_server(cfg)
-            packet = b'\xff' * 6 + bytes.fromhex('001122334455') * 16
+            packet = b'\xff' * 6 + bytes.fromhex('002481369636') * 16
             udp = sock.return_value.__enter__.return_value
-            self.assertEqual(udp.sendto.call_args_list, [unittest.mock.call(packet, ('255.255.255.255', 7)), unittest.mock.call(packet, ('255.255.255.255', 9))])
+            self.assertEqual(udp.sendto.call_args_list, [unittest.mock.call(packet, ('192.168.1.255', 7)), unittest.mock.call(packet, ('192.168.1.255', 9))])
 
     def test_hidden_links_sections_and_external_video(self):
         html = '''<div id="region-main"><li id="section-0"><h3>Bienvenue au cours</h3>
@@ -157,6 +157,37 @@ class LogicTests(unittest.TestCase):
             self.store.upload(local, relative, local.stat().st_size, app.sha_file(local))
         self.assertEqual(self.sftp.path(self.store.remote(relative)).read_bytes(), b"ancienne version")
         self.assertFalse(list(self.sftp.root.rglob("*.part-*")))
+
+    def test_fast_check_persists_and_rechecks_changed_remote(self):
+        self.cfg.fast_remote_check = True
+        local = self.root / "support.pdf"
+        local.write_bytes(b"original")
+        relative, digest = "Cours/S1/support.pdf", app.sha_file(local)
+        self.store.upload(local, relative, 8, digest)
+        self.store.remember(relative, 8, digest)
+        self.cfg.state_dir.mkdir(parents=True, exist_ok=True)
+        self.store.save(self.cfg.state_dir)
+        reloaded = app.RemoteStore(self.sftp, self.cfg)
+        with patch.object(reloaded, "digest", wraps=reloaded.digest) as read:
+            self.assertTrue(reloaded.matches(relative, 8, digest))
+            read.assert_not_called()
+            remote = self.sftp.path(reloaded.remote(relative))
+            old_mtime = remote.stat().st_mtime
+            remote.write_bytes(b"modified")
+            os.utime(remote, (old_mtime + 2, old_mtime + 2))
+            self.assertFalse(reloaded.matches(relative, 8, digest))
+            self.assertEqual(read.call_count, 1)
+
+    def test_strict_check_reads_even_with_saved_fingerprint(self):
+        self.cfg.fast_remote_check = False
+        local = self.root / "support.pdf"
+        local.write_bytes(b"original")
+        relative, digest = "Cours/S1/support.pdf", app.sha_file(local)
+        self.store.upload(local, relative, 8, digest)
+        self.store.remember(relative, 8, digest)
+        with patch.object(self.store, "digest", wraps=self.store.digest) as read:
+            self.assertTrue(self.store.matches(relative, 8, digest))
+            read.assert_called_once()
 
     def test_first_download_second_skip_then_same_size_update(self):
         http = StubHTTP()
@@ -250,13 +281,15 @@ class LogicTests(unittest.TestCase):
         seed = self.root / "audited_files.json"
         seed.write_text(json.dumps([{"relative_path":"Cours/S1/cours.pdf", "size":8, "sha256":app.sha_file(local)}]))
         self.cfg.bootstrap = True
-        with patch.object(app, "APP_DIR", self.root):
+        with patch.object(app, "APP_DIR", self.root), patch.object(self.store, "digest", wraps=self.store.digest) as read:
             app.Synchronizer(StubHTTP(), self.store, self.cfg, app.Summary()).bootstrap_audit()
+            self.assertEqual(read.call_count, 1)
+            self.assertIn(".sync_moodle_manifest.json.part-", read.call_args.args[0])
         self.assertEqual(self.sftp.path(self.store.remote("Cours/S1/cours.pdf")).read_bytes(), b"nouvelle")
 
     def test_env_is_independent_of_current_directory(self):
         env = self.root / "settings.env"
-        env.write_text("UBUNTU_HOST=192.0.2.10\nUBUNTU_USER=ton_utilisateur\nUBUNTU_REMOTE_DIR=/srv/cours\n", encoding="utf-8")
+        env.write_text("UBUNTU_HOST=192.168.11.1\nUBUNTU_USER=meowalex\nUBUNTU_REMOTE_DIR=/home/meowalex/cours\n", encoding="utf-8")
         with patch.dict(os.environ, {}, clear=True):
             cfg = app.Config.load(env)
         self.assertEqual(cfg.wait_2fa, 15)
@@ -274,6 +307,19 @@ class LogicTests(unittest.TestCase):
             app.report(summary, self.cfg)
         saved = json.loads((self.cfg.state_dir / "dernier_rapport.json").read_text(encoding="utf-8"))
         self.assertEqual(saved["errors"][0]["error"], "error containing [masqué]")
+
+    def test_resolve_course_selection_by_index_id_and_fuzzy_name(self):
+        # Index 1-based (3 -> Automatique)
+        self.assertEqual(app.resolve_course_selection(app.COURSES, ["3"]), [(19333, "Automatique")])
+        # ID Moodle direct (19333)
+        self.assertEqual(app.resolve_course_selection(app.COURSES, ["19333"]), [(19333, "Automatique")])
+        # Filtre textuel insensible à la casse et aux accents
+        self.assertEqual(app.resolve_course_selection(app.COURSES, ["mecanique"]), [(19337, "Mécanique Quantique")])
+        # Sélections multiples dédupliquées
+        chosen = app.resolve_course_selection(app.COURSES, ["3", "auto", "5"])
+        self.assertEqual(chosen, [(19333, "Automatique"), (19336, "Electronique Numérique")])
+        # Cible vide -> retourne l'ensemble
+        self.assertEqual(app.resolve_course_selection(app.COURSES, []), app.COURSES)
 
 
 class FixtureHTTP(BaseHTTPRequestHandler):
