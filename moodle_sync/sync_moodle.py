@@ -758,6 +758,8 @@ class Synchronizer:
         LOG.info("Amorçage depuis l'audit local : seuls les fichiers distants absents sont envoyés.")
         for number, entry in enumerate(seed, 1):
             relative = safe_relative(fix_mojibake(entry["relative_path"]))
+            if relative in self.store.records:
+                continue
             local = self.cfg.audit_dir / Path(*PurePosixPath(relative).parts)
             if not local.is_file():
                 raw_local = self.cfg.audit_dir / Path(*PurePosixPath(safe_relative(entry["relative_path"])).parts)
@@ -784,35 +786,47 @@ class Synchronizer:
         LOG.info("Vérification de l'audit terminée ; sauvegarde du manifest.")
         self.store.save(self.temp)
 
-    def file(self, resource):
+    def file(self, resource, meta=None, origin_url=None):
         identity = canonical_url(resource.url)
-        seen_key = (resource.course, resource.section, identity)
+        course_clean = clean_name(resource.course)
+        seen_key = (course_clean, identity)
         if seen_key in self.seen_files:
             return
         self.seen_files.add(seen_key)
-        meta = self.http.head(resource.url)
+        if origin_url:
+            self.seen_files.add((course_clean, canonical_url(origin_url)))
+
+        if meta is None:
+            meta = self.http.head(resource.url)
         relative = resource.prefix + meta.name
         record = None
+        course_prefix = f"{course_clean}/"
         for candidate, saved in self.store.records.items():
-            if candidate.startswith(resource.prefix) and identity in saved.get("sources", {}):
+            if candidate.startswith(course_prefix) and identity in saved.get("sources", {}):
                 relative, record = candidate, saved
                 break
+
         audited = self.store.records.get(relative)
         expected_size = meta.size if meta.size is not None else (record.get("size") if record else (audited.get("size") if audited else None))
         if not record and audited and not audited.get("sources") and expected_size is not None and self.store.matches(relative, expected_size, audited.get("sha256")):
             self.store.remember(relative, expected_size, audited.get("sha256"), resource.url, meta)
+            if origin_url:
+                self.store.remember(relative, expected_size, audited.get("sha256"), origin_url, meta)
             self.summary.mark(relative)
             LOG.info("Ignoré (déjà présent sur le serveur) : %s", relative)
             return
         if record:
-            before = record["sources"][identity]
-            validator_changed = any(current and current != previous for current, previous in ((meta.etag, before.get("etag")), (meta.modified, before.get("modified"))))
-            has_validator = bool(meta.etag or meta.modified)
-            check_size = meta.size if meta.size is not None else record.get("size")
-            if not validator_changed and (has_validator or not self.cfg.strict_source) and check_size is not None and self.store.matches(relative, check_size, record.get("sha256")):
-                self.summary.mark(relative)
-                LOG.info("Ignoré (déjà présent et vérifié) : %s", relative)
-                return
+            before = record.get("sources", {}).get(identity)
+            if before:
+                validator_changed = any(current and current != previous for current, previous in ((meta.etag, before.get("etag")), (meta.modified, before.get("modified"))))
+                has_validator = bool(meta.etag or meta.modified)
+                check_size = meta.size if meta.size is not None else record.get("size")
+                if not validator_changed and (has_validator or not self.cfg.strict_source) and check_size is not None and self.store.matches(relative, check_size, record.get("sha256")):
+                    self.summary.mark(relative)
+                    if origin_url and origin_url != resource.url:
+                        self.store.remember(relative, check_size, record.get("sha256"), origin_url, meta)
+                    LOG.info("Ignoré (déjà présent et vérifié) : %s", relative)
+                    return
         # Téléchargement en flux, sans conserver tout le PDF/PowerPoint en mémoire.
         temporary = self.temp / (uuid.uuid4().hex + ".download")
         size, digest, actual_meta = self.http.download(resource.url, temporary)
@@ -840,6 +854,8 @@ class Synchronizer:
             self.summary.bytes_sent += size
             LOG.info("Envoyé : %s", relative)
         self.store.remember(relative, size, digest, resource.url, actual_meta)
+        if origin_url:
+            self.store.remember(relative, size, digest, origin_url, actual_meta)
         temporary.unlink()  # Un échec garde le fichier local pour diagnostic/reprise.
 
     def note(self, relative, text):
@@ -854,6 +870,8 @@ class Synchronizer:
 
     def course(self, course_id, name):
         LOG.info("\nCours : %s", name)
+        course_clean = clean_name(name)
+        course_prefix = f"{course_clean}/"
         pending = deque([(MOODLE + f"/course/view.php?id={course_id}", "Général", "course", "")])
         visited = set()
         self.summary.courses[name] = "en cours"
@@ -862,13 +880,23 @@ class Synchronizer:
             if url in visited:
                 continue
             visited.add(url)
+            if kind == "module" and (course_clean, canonical_url(url)) in self.seen_files:
+                continue
             try:
                 if kind == "module" and "/mod/resource/" in url:
+                    canonical_mod = canonical_url(url)
+                    known_file = next(
+                        (cand for cand, row in self.store.records.items()
+                         if cand.startswith(course_prefix) and canonical_mod in row.get("sources", {})),
+                        None
+                    )
+                    if known_file and (known_file in self.summary.skipped or known_file in self.summary.sent):
+                        continue
                     try:
                         with self.http.open(url, "HEAD") as probe:
                             probe_meta = Metadata.from_headers(probe.headers, probe.geturl())
                             if "text/html" not in probe_meta.content_type or probe.headers.get("Content-Disposition"):
-                                self.file(Resource(name, section, probe.geturl(), title))
+                                self.file(Resource(name, section, probe.geturl(), title), meta=probe_meta, origin_url=url)
                                 continue
                     except HTTPError as exc:
                         if exc.code not in {405, 501}:
@@ -877,7 +905,7 @@ class Synchronizer:
                     final_url = response.geturl()
                     meta = Metadata.from_headers(response.headers, final_url)
                     if "text/html" not in meta.content_type or response.headers.get("Content-Disposition"):
-                        self.file(Resource(name, section, final_url, title))
+                        self.file(Resource(name, section, final_url, title), meta=meta, origin_url=url)
                         continue
                     html = response.read(16 * BLOCK + 1)
                     if len(html) > 16 * BLOCK:
@@ -924,7 +952,6 @@ class Synchronizer:
                 self.summary.courses[name] = "partiellement traité : erreur"
                 self.error(f"{name} / {title or section}", exc)
         self.write_links(name)
-        self.store.save(self.temp)
 
     def write_links(self, name):
         for collection, filename, heading in ((self.links[name], "liens_externes.md", "Liens externes"), (self.interactive[name], "activites_en_ligne.md", "Activités interactives en ligne")):
@@ -1005,6 +1032,7 @@ def main(argv=None):
         return 0
     configure_logging(cfg)
     summary, client, sftp, store, context, lock = Summary(), None, None, None, None, None
+    manifest_saved = False
     try:
         candidate = RunLock(cfg.state_dir / "run.lock")
         candidate.__enter__()
@@ -1029,6 +1057,7 @@ def main(argv=None):
                         LOG.info("Progression : cours %d/%d", number, len(COURSES))
                         synchronizer.course(course_id, name)
                     store.save(synchronizer.temp)
+                    manifest_saved = True
                 finally:
                     context.close()
                     context = None
@@ -1039,7 +1068,7 @@ def main(argv=None):
         LOG.error("Synchronisation arrêtée : %s", exc)
         summary.errors.append({"resource": "Exécution", "error": str(exc)})
     finally:
-        if store:
+        if store and not manifest_saved:
             try:
                 directory = cfg.state_dir / "temp"
                 directory.mkdir(parents=True, exist_ok=True)
