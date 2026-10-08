@@ -26,11 +26,15 @@ def ensure_onedrive_mount():
                 'onedrive:Cours_ISEN/ISEN_Lille_2026-2027',
                 str(cours_dir),
                 '--vfs-cache-mode', 'full',
-                '--dir-cache-time', '1m',
+                '--vfs-cache-max-age', '72h',
+                '--vfs-fast-fingerprint',
+                '--dir-cache-time', '24h',
+                '--poll-interval', '1m',
+                '--buffer-size', '32M',
                 '--daemon'
             ], check=True)
             time.sleep(2)
-            logging.info('Montage OneDrive actif.')
+            logging.info('Montage OneDrive actif (haute performance, cache 24h).')
     except Exception as exc:
         logging.warning('Auto-montage Rclone : %s', exc)
 

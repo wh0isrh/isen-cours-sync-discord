@@ -83,7 +83,7 @@ class Entry:
 
 
 class Catalog:
-    def __init__(self, settings, cache_ttl=60):
+    def __init__(self, settings, cache_ttl=86400):
         self.settings = settings
         self.root = settings.root.resolve()
         self.cache_ttl = cache_ttl
@@ -94,6 +94,25 @@ class Catalog:
             self._cache.clear()
         else:
             self._cache.pop(Path(relative), None)
+
+    def prewarm(self):
+        """Précharge récursivement toute l'arborescence en RAM."""
+        if not self.root.is_dir():
+            return 0
+        total = 0
+        stack = [Path('.')]
+        while stack:
+            curr = stack.pop()
+            try:
+                entries = self.list(curr)
+                total += len(entries)
+                for entry in entries:
+                    if entry.folder:
+                        stack.append(entry.path)
+            except Exception as exc:
+                LOG.warning("Erreur préchargement dossier %s : %s", curr, exc)
+        LOG.info("Catalogue des cours préchargé en RAM : %d éléments indexés.", total)
+        return total
 
     def check(self, relative=Path('.')):
         relative = Path(relative)
@@ -385,6 +404,10 @@ class CourseBrowser(commands.Cog):
         self.bot = bot
         self.catalog = Catalog(settings or Settings.from_env())
 
+    async def cog_load(self):
+        # Pré-charger tout le catalogue en RAM en tâche de fond au démarrage
+        asyncio.create_task(disk_call(self.catalog.prewarm))
+
     @app_commands.command(name='cours', description='Explorer les matières, chapitres et documents de cours')
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=False)
     @app_commands.checks.cooldown(2, 10.0, key=lambda i: i.user.id)
@@ -423,6 +446,7 @@ class CourseBrowser(commands.Cog):
             return
         if hasattr(self.catalog, 'clear_cache'):
             self.catalog.clear_cache()
+            asyncio.create_task(disk_call(self.catalog.prewarm))
         await notify(interaction, "✨ Cache de l'explorateur de cours actualisé avec succès !", private=True)
 
 

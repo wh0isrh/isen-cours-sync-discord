@@ -343,6 +343,65 @@ class LogicTests(unittest.TestCase):
         self.assertIn(relative, reloaded.records)
         self.assertEqual(reloaded.records[relative]["sha256"], digest)
 
+    def test_summary_concurrency(self):
+        summary = app.Summary()
+        def worker(idx):
+            for i in range(50):
+                summary.mark(f"course_{idx}/file_{i}.pdf", sent=(i % 2 == 0))
+                summary.add_bytes(10)
+                summary.set_course_status(f"course_{idx}", "ok")
+                summary.add_unavailable(f"unavail_{idx}_{i}")
+                summary.add_error(f"err_{idx}", "some error")
+                summary.add_external_links(1)
+        threads = [threading.Thread(target=worker, args=(t,)) for t in range(4)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        self.assertEqual(summary.bytes_sent, 2000)
+        self.assertEqual(summary.external_links, 200)
+        self.assertEqual(len(summary.errors), 200)
+        self.assertEqual(len(summary.unavailable), 200)
+        self.assertEqual(len(summary.sent), 100)
+
+    def test_gzip_response_wrapper(self):
+        import gzip
+        payload = b"Hello from Junia compressed stream!"
+        compressed = gzip.compress(payload)
+        
+        class FakeResp(io.BytesIO):
+            def close(self): pass
+        
+        wrapper = app.GzipResponseWrapper(FakeResp(compressed))
+        self.assertEqual(wrapper.read(), payload)
+
+    def test_local_store_fast_remote_check(self):
+        local_dir = self.root / "fast_check_courses"
+        local_dir.mkdir()
+        store = app.LocalStore(local_dir, self.cfg)
+        test_file = local_dir / "test.txt"
+        content = b"manifest test content"
+        test_file.write_bytes(content)
+        digest = hashlib.sha256(content).hexdigest()
+        store.remember("test.txt", len(content), digest)
+        store.save()
+        self.assertTrue(store.matches("test.txt", len(content), digest))
+
+    def test_save_and_load_saved_session(self):
+        cookies = [{"name": "MoodleSession", "value": "xyz123", "domain": "junia-learning.com", "path": "/"}]
+        app.save_session_cookies(cookies, self.cfg)
+        cookie_file = self.cfg.state_dir / "session_cookies.json"
+        self.assertTrue(cookie_file.is_file())
+        with patch.object(app.MoodleHTTP, "open") as mock_open:
+            class MockResp:
+                def geturl(self): return app.MOODLE + "/my/"
+                def read(self, *a): return b"Mes cours"
+                def __enter__(self): return self
+                def __exit__(self, *a): pass
+            mock_open.return_value = MockResp()
+            loaded = app.load_saved_session(self.cfg)
+            self.assertEqual(loaded, cookies)
+
 
 
 

@@ -9,8 +9,10 @@ import argparse
 import base64
 import errno
 import getpass
+import gzip
 import hashlib
 import http.cookiejar
+import io
 import json
 import logging
 import os
@@ -20,10 +22,12 @@ import shutil
 import socket
 import stat
 import sys
+import threading
 import time
 import unicodedata
 import uuid
 from collections import defaultdict, deque
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.message import Message
@@ -638,30 +642,66 @@ class Metadata:
         return cls(int(length) if length.isdigit() else None, headers.get("ETag", ""), headers.get("Last-Modified", ""), headers.get("Content-Type", "").lower(), clean_name(name, True))
 
 
+class GzipResponseWrapper:
+    def __init__(self, response):
+        self._resp = response
+        self._buf = None
+
+    def _ensure(self):
+        if self._buf is None:
+            raw = self._resp.read()
+            try:
+                self._buf = io.BytesIO(gzip.decompress(raw))
+            except Exception:
+                self._buf = io.BytesIO(raw)
+
+    def read(self, *args):
+        self._ensure()
+        return self._buf.read(*args)
+
+    def __getattr__(self, name):
+        return getattr(self._resp, name)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._resp.close()
+
+
 class MoodleHTTP:
-    def __init__(self, context, cfg, base_url=MOODLE):
+    def __init__(self, context_or_cookies, cfg, base_url=MOODLE):
         self.cfg, self.base_url = cfg, base_url
         jar = http.cookiejar.CookieJar()
-        for cookie in context.cookies():
+        raw = context_or_cookies.cookies() if hasattr(context_or_cookies, "cookies") else context_or_cookies
+        for cookie in raw:
+            domain = cookie.get("domain", "")
             jar.set_cookie(http.cookiejar.Cookie(
-                0, cookie["name"], cookie["value"], None, False, cookie["domain"],
-                True, cookie["domain"].startswith("."), cookie["path"], True,
-                cookie["secure"], int(cookie["expires"]) if cookie["expires"] > 0 else None,
-                cookie["expires"] <= 0, None, None, {}, False,
+                0, cookie["name"], cookie["value"], None, False, domain,
+                True, str(domain).startswith("."), cookie.get("path", "/"), True,
+                bool(cookie.get("secure", False)),
+                int(cookie["expires"]) if cookie.get("expires") and cookie["expires"] > 0 else None,
+                not bool(cookie.get("expires") and cookie["expires"] > 0), None, None, {}, False,
             ))
         self.opener = build_opener(SameOriginRedirect(base_url), HTTPCookieProcessor(jar))
 
-    def open(self, url, method="GET"):
+    def open(self, url, method="GET", decompress=True):
         a, b = urlsplit(url), urlsplit(self.base_url)
         if (a.scheme, a.netloc) != (b.scheme, b.netloc):
             raise ValueError("Les cookies Junia ne peuvent pas être envoyés à une autre origine")
-        request = Request(url, method=method, headers={"User-Agent": "JuniaCourseSync/1.0", "Accept-Encoding": "identity"})
+        headers = {
+            "User-Agent": "JuniaCourseSync/1.0",
+            "Accept-Encoding": "gzip, deflate" if decompress else "identity"
+        }
+        request = Request(url, method=method, headers=headers)
         for attempt in range(self.cfg.http_retries):
             try:
                 response = self.opener.open(request, timeout=self.cfg.http_timeout)
                 if "/login/" in urlsplit(response.geturl()).path:
                     response.close()
                     raise AuthenticationExpired("Session Junia expirée. Relancer pour se reconnecter.")
+                if decompress and response.headers.get("Content-Encoding", "").lower() == "gzip":
+                    response = GzipResponseWrapper(response)
                 return response
             except HTTPError as exc:
                 retryable = exc.code in {429, 500, 502, 503, 504}
@@ -676,7 +716,7 @@ class MoodleHTTP:
 
     def head(self, url):
         try:
-            with self.open(url, "HEAD") as response:
+            with self.open(url, "HEAD", decompress=False) as response:
                 result = Metadata.from_headers(response.headers, response.geturl())
                 if "text/html" in result.content_type and not response.headers.get("Content-Disposition"):
                     raise AuthenticationExpired("Un fichier Moodle renvoie une page HTML au lieu du support.")
@@ -687,7 +727,7 @@ class MoodleHTTP:
             raise
 
     def download(self, url, target):
-        with self.open(url) as response, target.open("wb") as output:
+        with self.open(url, decompress=False) as response, target.open("wb") as output:
             meta = Metadata.from_headers(response.headers, response.geturl())
             if "text/html" in meta.content_type and not response.headers.get("Content-Disposition"):
                 raise AuthenticationExpired("Le téléchargement renvoie une page HTML ; fichier non envoyé.")
@@ -699,6 +739,43 @@ class MoodleHTTP:
         if size == 0 or (meta.size is not None and size != meta.size):
             raise IOError("Téléchargement incomplet : taille reçue incorrecte")
         return size, digest.hexdigest(), meta
+
+
+def save_session_cookies(context_or_cookies, cfg):
+    try:
+        raw = context_or_cookies.cookies() if hasattr(context_or_cookies, "cookies") else context_or_cookies
+        cookie_path = cfg.state_dir / "session_cookies.json"
+        cookie_path.parent.mkdir(parents=True, exist_ok=True)
+        cookie_path.write_text(json.dumps(raw, indent=2), encoding="utf-8")
+        LOG.info("Cookies de session sauvegardés : %s", cookie_path)
+    except Exception as exc:
+        LOG.warning("Impossible d'enregistrer les cookies : %s", exc)
+
+
+def load_saved_session(cfg) -> list[dict] | None:
+    cookie_path = cfg.state_dir / "session_cookies.json"
+    if not cookie_path.is_file():
+        return None
+    try:
+        cookies = json.loads(cookie_path.read_text(encoding="utf-8"))
+        if not isinstance(cookies, list) or not any(c.get("name") == "MoodleSession" for c in cookies):
+            return None
+        # Test ultra-léger de session HTTP sans Chromium
+        tester = MoodleHTTP(cookies, cfg)
+        with tester.open(MOODLE + "/my/") as resp:
+            final_url = resp.geturl()
+            if "/login/" in final_url or "/auth/" in final_url:
+                LOG.info("Session Moodle expirée sur le serveur.")
+                return None
+            body = resp.read(8192).decode("utf-8", errors="replace").lower()
+            if "connexion" in body and "logout" not in body and "déconnexion" not in body and "mes cours" not in body:
+                LOG.info("Session Moodle non connectée.")
+                return None
+        LOG.info("⚡ Fast-Path : Session Moodle active réutilisée sans lancer Chromium !")
+        return cookies
+    except Exception as exc:
+        LOG.info("Fast-Path non disponible (%s), lancement de Chromium.", exc)
+        return None
 
 
 @dataclass
@@ -789,6 +866,7 @@ class LocalStore:
     def __init__(self, root: Path | str, cfg=None):
         self.root = Path(root).resolve()
         self.cfg = cfg
+        self.lock = threading.Lock()
         self.ledger_path = self.root / ".sync_moodle_manifest.json"
         self.records = {}
         self.verified = {}
@@ -832,15 +910,20 @@ class LocalStore:
             return False
         if not ((self.cfg.verify_hash if self.cfg else True) and digest):
             return True
+        if getattr(self.cfg, "fast_remote_check", True):
+            recorded = self.records.get(relative, {})
+            if recorded.get("sha256") == digest and recorded.get("size") == size:
+                return True
         fingerprint = {"size": size, "mtime": getattr(stat_val, "st_mtime_ns", stat_val.st_mtime), "sha256": digest}
         cached = self.verified.get(relative) or self.records.get(relative, {}).get("verified_remote")
         if (getattr(self.cfg, "fast_remote_check", True) if self.cfg else True) and cached == fingerprint:
             return True
         if sha_file(p) != digest:
             return False
-        self.verified[relative] = fingerprint
-        if relative in self.records:
-            self.records[relative]["verified_remote"] = fingerprint
+        with self.lock:
+            self.verified[relative] = fingerprint
+            if relative in self.records:
+                self.records[relative]["verified_remote"] = fingerprint
         return True
 
     def upload(self, source, relative, size, digest):
@@ -856,23 +939,26 @@ class LocalStore:
             part.unlink(missing_ok=True)
             raise IOError("Empreinte SHA-256 incorrecte après copie locale")
         part.replace(target)
-        self.verified[relative] = {"size": size, "mtime": getattr(stat_val, "st_mtime_ns", stat_val.st_mtime), "sha256": digest}
+        with self.lock:
+            self.verified[relative] = {"size": size, "mtime": getattr(stat_val, "st_mtime_ns", stat_val.st_mtime), "sha256": digest}
         self.remember(relative, size, digest)
 
     def remember(self, relative, size, digest, url="", meta=None):
-        record = self.records.setdefault(relative, {"sources": {}})
-        record.update(size=size, sha256=digest)
-        if relative in self.verified and self.verified[relative]["sha256"] == digest:
-            record["verified_remote"] = self.verified[relative]
-        if url and ("/pluginfile.php/" in urlsplit(url).path or "/mod/resource/" in urlsplit(url).path):
-            record.setdefault("sources", {})[canonical_url(url)] = {
-                "size": size, "etag": meta.etag if meta else "",
-                "modified": meta.modified if meta else "",
-            }
+        with self.lock:
+            record = self.records.setdefault(relative, {"sources": {}})
+            record.update(size=size, sha256=digest)
+            if relative in self.verified and self.verified[relative]["sha256"] == digest:
+                record["verified_remote"] = self.verified[relative]
+            if url and ("/pluginfile.php/" in urlsplit(url).path or "/mod/resource/" in urlsplit(url).path):
+                record.setdefault("sources", {})[canonical_url(url)] = {
+                    "size": size, "etag": meta.etag if meta else "",
+                    "modified": meta.modified if meta else "",
+                }
 
     def save(self, directory=None):
+        with self.lock:
+            data = {"version": 1, "files": dict(self.records)}
         part = self.root / (f".manifest-{uuid.uuid4().hex}.tmp")
-        data = {"version": 1, "files": self.records}
         part.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         part.replace(self.ledger_path)
 
@@ -1025,16 +1111,39 @@ class Summary:
     courses: dict = field(default_factory=dict)
     bytes_sent: int = 0
     external_links: int = 0
+    _lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
 
     def mark(self, relative, sent=False, metadata=False):
-        if metadata:
-            if sent:
-                self.metadata_sent.add(relative)
-        elif sent:
-            self.sent.add(relative)
-            self.skipped.discard(relative)
-        elif relative not in self.sent:
-            self.skipped.add(relative)
+        with self._lock:
+            if metadata:
+                if sent:
+                    self.metadata_sent.add(relative)
+            elif sent:
+                self.sent.add(relative)
+                self.skipped.discard(relative)
+            elif relative not in self.sent:
+                self.skipped.add(relative)
+
+    def add_bytes(self, n: int):
+        with self._lock:
+            self.bytes_sent += n
+
+    def add_external_links(self, n: int):
+        with self._lock:
+            self.external_links += n
+
+    def add_error(self, resource, err):
+        with self._lock:
+            self.errors.append({"resource": resource, "error": str(err)})
+
+    def set_course_status(self, course, status):
+        with self._lock:
+            self.courses[course] = status
+
+    def add_unavailable(self, course):
+        with self._lock:
+            self.unavailable.append(course)
+
 
 
 def sync_local(store, cfg, summary, allowed_courses=None):
@@ -1065,12 +1174,12 @@ def sync_local(store, cfg, summary, allowed_courses=None):
             else:
                 store.upload(local, relative, size, digest)
                 summary.mark(relative, sent=True, metadata=metadata)
-                summary.bytes_sent += size
+                summary.add_bytes(size)
                 LOG.info("Envoyé : %s", relative)
             store.remember(relative, size, digest)
-            summary.courses[course] = "fichiers locaux synchronisés"
+            summary.set_course_status(course, "fichiers locaux synchronisés")
         except Exception as exc:
-            summary.errors.append({"resource": relative, "error": str(exc)})
+            summary.add_error(relative, exc)
             LOG.error("%s : %s", relative, exc)
 
 
@@ -1083,10 +1192,11 @@ class Synchronizer:
         self.links = defaultdict(list)
         self.interactive = defaultdict(list)
         self.seen_files = set()
+        self.lock = threading.Lock()
 
     def error(self, label, exc):
         LOG.error("%s : %s", label, exc)
-        self.summary.errors.append({"resource": label, "error": str(exc)})
+        self.summary.add_error(label, exc)
 
     def bootstrap_audit(self):
         seed = json.loads((APP_DIR / "audited_files.json").read_text(encoding="utf-8"))
@@ -1119,7 +1229,7 @@ class Synchronizer:
                 self.store.upload(local, relative, entry["size"], entry["sha256"])
                 self.store.remember(relative, entry["size"], entry["sha256"])
                 self.summary.mark(relative, sent=True)
-                self.summary.bytes_sent += entry["size"]
+                self.summary.add_bytes(entry["size"])
                 LOG.info("Audit envoyé : %s", relative)
             except Exception as exc:
                 self.error(relative, exc)
@@ -1130,11 +1240,12 @@ class Synchronizer:
         identity = canonical_url(resource.url)
         course_clean = clean_name(resource.course)
         seen_key = (course_clean, identity)
-        if seen_key in self.seen_files:
-            return
-        self.seen_files.add(seen_key)
-        if origin_url:
-            self.seen_files.add((course_clean, canonical_url(origin_url)))
+        with self.lock:
+            if seen_key in self.seen_files:
+                return
+            self.seen_files.add(seen_key)
+            if origin_url:
+                self.seen_files.add((course_clean, canonical_url(origin_url)))
 
         if meta is None:
             meta = self.http.head(resource.url)
@@ -1201,7 +1312,7 @@ class Synchronizer:
         else:
             self.store.upload(temporary, relative, size, digest)
             self.summary.mark(relative, sent=True)
-            self.summary.bytes_sent += size
+            self.summary.add_bytes(size)
             LOG.info("Envoyé : %s", relative)
         self.store.remember(relative, size, digest, resource.url, actual_meta)
         if origin_url:
@@ -1226,7 +1337,7 @@ class Synchronizer:
         course_prefix = f"{course_clean}/"
         pending = deque([(MOODLE + f"/course/view.php?id={course_id}", "Général", "course", "")])
         visited = set()
-        self.summary.courses[name] = "en cours"
+        self.summary.set_course_status(name, "en cours")
         while pending:
             if self.cancel_event and self.cancel_event.is_set():
                 LOG.info("Annulation demandée pendant l'analyse du cours %s.", name)
@@ -1235,8 +1346,10 @@ class Synchronizer:
             if url in visited:
                 continue
             visited.add(url)
-            if kind == "module" and (course_clean, canonical_url(url)) in self.seen_files:
-                continue
+            if kind == "module":
+                with self.lock:
+                    if (course_clean, canonical_url(url)) in self.seen_files:
+                        continue
             try:
                 if kind == "module" and "/mod/resource/" in url:
                     canonical_mod = canonical_url(url)
@@ -1268,13 +1381,13 @@ class Synchronizer:
                     html = html.decode(response.headers.get_content_charset() or "utf-8", errors="replace")
                 found, text, blocked = parse_links(html, final_url, name, section)
                 if blocked:
-                    self.summary.unavailable.append(name)
-                    self.summary.courses[name] = "fermé ou inscription requise"
+                    self.summary.add_unavailable(name)
+                    self.summary.set_course_status(name, "fermé ou inscription requise")
                     self.note(clean_name(name) + "/acces_indisponible.md", f"# {name}\n\nSource : {url}\n\n{text}\n")
                     LOG.info("Cours fermé aux étudiants ou inscription requise : %s", name)
                     return
                 if kind == "course":
-                    self.summary.courses[name] = "accessible"
+                    self.summary.set_course_status(name, "accessible")
                 if not found and "login" in html.lower() and BeautifulSoup(html, "html.parser").select_one("input[type=password]"):
                     raise AuthenticationExpired("Page de connexion reçue pendant l'exploration")
                 if kind == "module" and re.search(r"/mod/(page|assign)/", url):
@@ -1293,25 +1406,31 @@ class Synchronizer:
                     elif target_kind == "module":
                         pending.append((resource.url, resource.section, "module", resource.title))
                     elif target_kind == "external":
-                        self.links[name].append(resource)
+                        with self.lock:
+                            self.links[name].append(resource)
                     elif target_kind == "interactive":
-                        self.interactive[name].append(resource)
+                        with self.lock:
+                            self.interactive[name].append(resource)
             except AuthenticationExpired as exc:
                 # Un module URL peut rediriger vers une destination externe :
                 # extraire sa destination de l'en-tête sans lui envoyer les cookies.
                 if "/mod/url/" in url and isinstance(exc, ExternalRedirect):
-                    self.links[name].append(Resource(name, section, exc.url, title))
+                    with self.lock:
+                        self.links[name].append(Resource(name, section, exc.url, title))
                 else:
                     raise
             except Exception as exc:
-                self.summary.courses[name] = "partiellement traité : erreur"
+                self.summary.set_course_status(name, "partiellement traité : erreur")
                 self.error(f"{name} / {title or section}", exc)
         self.write_links(name)
 
     def write_links(self, name):
         if not getattr(self.cfg, "save_notes", True):
             return
-        for collection, filename, heading in ((self.links[name], "liens_externes.md", "Liens externes"), (self.interactive[name], "activites_en_ligne.md", "Activités interactives en ligne")):
+        with self.lock:
+            ext = list(self.links[name])
+            act = list(self.interactive[name])
+        for collection, filename, heading in ((ext, "liens_externes.md", "Liens externes"), (act, "activites_en_ligne.md", "Activités interactives en ligne")):
             unique = {r.url: r for r in collection}
             if not unique:
                 continue
@@ -1320,7 +1439,7 @@ class Synchronizer:
                 rows.append(f"- **{r.section}** — {r.title} : {r.url}")
             self.note(clean_name(name) + "/" + filename, "\n".join(rows) + "\n")
             if filename == "liens_externes.md":
-                self.summary.external_links += len(unique)
+                self.summary.add_external_links(len(unique))
 
 
 class ExternalRedirect(AuthenticationExpired):
@@ -1426,43 +1545,11 @@ def prompt_course_selection(available):
     return resolve_course_selection(available, tokens)
 
 
-def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--env", type=Path, default=APP_DIR / ".env")
-    parser.add_argument("--check-config", action="store_true", help="Valider le fichier .env sans connexion réseau")
-    parser.add_argument("--local-only", action="store_true", help="Synchroniser uniquement les cours conservés sur le PC, sans Moodle")
-    parser.add_argument("--moodle", action="store_true", help="Relancer la découverte Moodle même si LOCAL_ONLY=true")
-    parser.add_argument("--course", "-c", action="append", dest="courses", default=[],
-                        help="Matière(s) à synchroniser (nom, numéro ou ID Moodle). Répétable.")
-    parser.add_argument("--all", "-a", action="store_true", help="Synchroniser toutes les matières sans confirmation")
-    parser.add_argument("selected_courses", nargs="*",
-                        help="Nom(s) ou numéro(s) de matière(s) à synchroniser (ex: Automatique ou 3)")
-    args = parser.parse_args(argv)
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    try:
-        cfg = Config.load(args.env)
-    except (ValueError, OSError) as exc:
-        print(f"Configuration : {exc}")
-        return 2
-    if args.check_config:
-        print(f"Configuration valide : {cfg.user}@{cfg.host}:{cfg.port}, destination {cfg.remote_dir}")
-        print(f"Connexion Junia : {'email configuré' if cfg.email else 'manuelle dans le navigateur'}")
-        return 0
-
-    targets = (args.courses or []) + (args.selected_courses or [])
-    if targets:
-        target_courses = resolve_course_selection(COURSES, targets)
-    elif not args.all and sys.stdin.isatty():
-        target_courses = prompt_course_selection(COURSES)
-    else:
-        target_courses = COURSES
-
 def run_sync(cfg: Config, target_courses: list | None = None, local_only: bool = False, force_moodle: bool = False,
              on_mfa_code=None, on_progress=None, on_status=None, cancel_event=None) -> tuple[Summary, int]:
     if target_courses is None:
         target_courses = COURSES
-    summary, client, sftp, store, context, lock = Summary(), None, None, None, None, None
+    summary, client, sftp, store, lock = Summary(), None, None, None, None
     manifest_saved = False
     try:
         candidate = RunLock(cfg.state_dir / "run.lock")
@@ -1496,42 +1583,101 @@ def run_sync(cfg: Config, target_courses: list | None = None, local_only: bool =
                     pass
             sync_local(store, cfg, summary, target_courses)
         else:
+            if cancel_event and cancel_event.is_set():
+                LOG.info("Annulation demandée avant démarrage.")
+                return summary, 0
+
+            # 1. Fast-Path : Tenter la réutilisation de la session Moodle sans lancer Chromium
+            saved_cookies = load_saved_session(cfg)
+            moodle_http = None
+
+            if saved_cookies:
+                LOG.info("⚡ Fast-Path : Session Moodle active réutilisée sans lancer Chromium !")
+                if on_status:
+                    try:
+                        on_status("⚡ Session active réutilisée (sans Chromium)...")
+                    except Exception:
+                        pass
+                moodle_http = MoodleHTTP(saved_cookies, cfg)
+            else:
+                if on_status:
+                    try:
+                        on_status("Lancement du navigateur Chromium...")
+                    except Exception:
+                        pass
+                with sync_playwright() as playwright:
+                    launch_args = ["--disable-blink-features=AutomationControlled", "--no-sandbox", "--disable-dev-shm-usage"]
+                    context = playwright.chromium.launch_persistent_context(
+                        str(cfg.state_dir / "browser-profile"), headless=cfg.headless,
+                        args=launch_args, accept_downloads=True, viewport={"width": 1280, "height": 850},
+                    )
+                    try:
+                        microsoft_login(context, cfg, on_mfa_code=on_mfa_code, on_status=on_status, cancel_event=cancel_event)
+                        if cancel_event and cancel_event.is_set():
+                            LOG.info("Annulation demandée pendant la connexion.")
+                            return summary, 0
+                        save_session_cookies(context, cfg)
+                        moodle_http = MoodleHTTP(context.cookies(), cfg)
+                    finally:
+                        context.close()
+
+            if cancel_event and cancel_event.is_set():
+                LOG.info("Annulation demandée avant analyse des cours.")
+                return summary, 0
+
+            synchronizer = Synchronizer(moodle_http, store, cfg, summary, cancel_event=cancel_event)
             if on_status:
                 try:
-                    on_status("Lancement du navigateur Chromium...")
+                    on_status("Amorçage de l'audit...")
                 except Exception:
                     pass
-            with sync_playwright() as playwright:
-                launch_args = ["--disable-blink-features=AutomationControlled", "--no-sandbox", "--disable-dev-shm-usage"]
-                context = playwright.chromium.launch_persistent_context(
-                    str(cfg.state_dir / "browser-profile"), headless=cfg.headless,
-                    args=launch_args, accept_downloads=True, viewport={"width": 1280, "height": 850},
-                )
-                try:
-                    microsoft_login(context, cfg, on_mfa_code=on_mfa_code, on_status=on_status, cancel_event=cancel_event)
-                    synchronizer = Synchronizer(MoodleHTTP(context, cfg), store, cfg, summary, cancel_event=cancel_event)
-                    if on_status:
-                        try:
-                            on_status("Amorçage de l'audit...")
-                        except Exception:
-                            pass
-                    synchronizer.bootstrap_audit()
-                    for number, (course_id, name) in enumerate(target_courses, 1):
-                        if cancel_event and cancel_event.is_set():
-                            LOG.info("Annulation demandée : arrêt avant le cours %s.", name)
-                            break
-                        LOG.info("Progression : cours %d/%d (%s)", number, len(target_courses), name)
+            synchronizer.bootstrap_audit()
+
+            # 2. Analyse des cours (parallélisée avec ThreadPoolExecutor si stockage direct)
+            max_workers = min(3, len(target_courses)) if (cfg.local_storage and len(target_courses) > 1) else 1
+
+            if max_workers > 1:
+                LOG.info("⚡ Analyse parallèle des cours activée (%d workers)", max_workers)
+                completed_count = 0
+                prog_lock = threading.Lock()
+
+                def scan_one_course(cid, cname):
+                    if cancel_event and cancel_event.is_set():
+                        return
+                    synchronizer.course(cid, cname)
+
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = {executor.submit(scan_one_course, cid, cname): (cid, cname) for cid, cname in target_courses}
+                    for future in as_completed(futures):
+                        cid, cname = futures[future]
+                        with prog_lock:
+                            completed_count += 1
+                            curr = completed_count
+                        LOG.info("Progression : cours %d/%d terminé (%s)", curr, len(target_courses), cname)
                         if on_progress:
                             try:
-                                on_progress(number, len(target_courses), name)
+                                on_progress(curr, len(target_courses), cname)
                             except Exception:
                                 pass
-                        synchronizer.course(course_id, name)
-                    store.save(synchronizer.temp)
-                    manifest_saved = True
-                finally:
-                    context.close()
-                    context = None
+                        try:
+                            future.result()
+                        except Exception as exc:
+                            LOG.error("Erreur lors de l'analyse du cours %s : %s", cname, exc)
+            else:
+                for number, (course_id, name) in enumerate(target_courses, 1):
+                    if cancel_event and cancel_event.is_set():
+                        LOG.info("Annulation demandée : arrêt avant le cours %s.", name)
+                        break
+                    LOG.info("Progression : cours %d/%d (%s)", number, len(target_courses), name)
+                    if on_progress:
+                        try:
+                            on_progress(number, len(target_courses), name)
+                        except Exception:
+                            pass
+                    synchronizer.course(course_id, name)
+
+            store.save(synchronizer.temp)
+            manifest_saved = True
     except KeyboardInterrupt:
         summary.errors.append({"resource": "Exécution", "error": "Interruption par l'utilisateur"})
         LOG.info("Interruption : les transferts terminés restent disponibles.")

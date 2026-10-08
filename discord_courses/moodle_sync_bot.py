@@ -363,6 +363,17 @@ class MoodleSyncCog(commands.Cog):
             elif channel:
                 await channel.send(embed=final_embed)
 
+            # Invalider et préchauffer immédiatement le cache du catalogue /cours
+            try:
+                browser_cog = self.bot.get_cog("CourseBrowser")
+                if browser_cog and hasattr(browser_cog, "catalog"):
+                    browser_cog.catalog.clear_cache()
+                    from course_browser import disk_call
+                    asyncio.create_task(disk_call(browser_cog.catalog.prewarm))
+                    LOG.info("Cache du catalogue CourseBrowser réinitialisé et préchauffé en tâche de fond.")
+            except Exception as exc:
+                LOG.warning("Impossible de réinitialiser le cache CourseBrowser : %s", exc)
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(MoodleSyncCog(bot))
