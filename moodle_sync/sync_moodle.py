@@ -614,6 +614,27 @@ class Resource:
         return f"{clean_name(self.course)}/{clean_name(self.section)}/"
 
 
+def extract_section_title(element, default="Général") -> str:
+    if not element:
+        return default
+    for sel in (".courseindex-name", ".sectionname-text", "[data-for='section_title']"):
+        target = element.select_one(sel)
+        if target:
+            txt = target.get_text(" ", strip=True)
+            if txt:
+                return clean_name(txt)
+    clone = BeautifulSoup(str(element), "html.parser")
+    for badge in clone.select(".section-number, .courseindex-section-number, .sr-only, .accesshide, .number, .badge"):
+        badge.decompose()
+    txt = clone.get_text(" ", strip=True)
+    if txt:
+        m = re.match(r"^(\d+)\s+([A-Za-zÀ-ÖØ-öø-ÿ].*)$", txt)
+        if m:
+            txt = m.group(2)
+        return clean_name(txt)
+    return default
+
+
 def section_of(element, default):
     for parent in element.parents:
         identifier = parent.get("id", "")
@@ -621,7 +642,7 @@ def section_of(element, default):
             if identifier == "section-0":
                 return "Général"
             heading = parent.select_one("[id^='coursecontentsection'], .sectionname")
-            return heading.get_text(" ", strip=True) if heading else default
+            return extract_section_title(heading, default)
     return default
 
 
@@ -655,7 +676,7 @@ def parse_links(html, url, course, section):
         link = urljoin(url, node["href"])
         if link not in seen and urlsplit(link).netloc == urlsplit(MOODLE).netloc:
             seen.add(link)
-            result.append(("section", Resource(course, node.get_text(" ", strip=True) or section, link, "")))
+            result.append(("section", Resource(course, extract_section_title(node, section), link, "")))
     text = main.get_text("\n", strip=True)
     blocked = "Ce cours n’est actuellement pas disponible pour les étudiants" in text or "Ce cours n'est actuellement pas disponible pour les étudiants" in text
     enrolled = bool(soup.select_one("#page-enrol-index, body#page-enrol-index")) or "/enrol/" in urlsplit(url).path
@@ -930,6 +951,13 @@ class Synchronizer:
                 break
 
         audited = self.store.records.get(relative)
+        if not audited and not record:
+            target_filename = meta.name
+            for cand, saved in self.store.records.items():
+                if cand.startswith(course_prefix) and PurePosixPath(cand).name == target_filename:
+                    relative, audited = cand, saved
+                    break
+
         expected_size = meta.size if meta.size is not None else (record.get("size") if record else (audited.get("size") if audited else None))
         if not record and audited and not audited.get("sources") and expected_size is not None and self.store.matches(relative, expected_size, audited.get("sha256")):
             self.store.remember(relative, expected_size, audited.get("sha256"), resource.url, meta)
@@ -960,7 +988,10 @@ class Synchronizer:
             record = None
         if not record:
             # Les liens de résumé et les dossiers peuvent exposer le même contenu.
+            target_name = PurePosixPath(relative).name
             identical = next((p for p, row in self.store.records.items() if p.startswith(resource.prefix) and row.get("sha256") == digest), None)
+            if not identical:
+                identical = next((p for p, row in self.store.records.items() if p.startswith(course_prefix) and PurePosixPath(p).name == target_name and row.get("sha256") == digest), None)
             if identical:
                 relative = identical
             elif self.store.attributes(self.store.remote(relative)):
