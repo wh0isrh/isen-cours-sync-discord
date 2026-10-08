@@ -58,6 +58,13 @@ class CoursesBot(commands.Bot):
 
     async def on_ready(self):
         logging.info('Bot connecté : %s (id=%s)', self.user.name, self.user.id)
+        for guild in self.guilds:
+            try:
+                self.tree.copy_global_to(guild=guild)
+                synced = await self.tree.sync(guild=guild)
+                logging.info('Synchronisé %s commande(s) pour le serveur %s (%s)', len(synced), guild.name, guild.id)
+            except Exception as exc:
+                logging.warning('Erreur sync serveur %s: %s', guild.id, exc)
 
 
 if __name__ == '__main__':

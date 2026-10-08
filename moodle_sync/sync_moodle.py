@@ -439,7 +439,7 @@ def extract_mfa_code(page) -> str | None:
     return None
 
 
-def microsoft_login(context, cfg, on_mfa_code=None, on_status=None):
+def microsoft_login(context, cfg, on_mfa_code=None, on_status=None, cancel_event=None):
     page = context.pages[0] if context.pages else context.new_page()
     page.goto(MOODLE + "/my/", wait_until="domcontentloaded", timeout=60000)
     if is_moodle_logged_in(page):
@@ -464,6 +464,9 @@ def microsoft_login(context, cfg, on_mfa_code=None, on_status=None):
     last_second = None
     last_logged_url = ""
     while time.monotonic() < deadline:
+        if cancel_event and cancel_event.is_set():
+            LOG.info("Annulation demandée pendant la connexion.")
+            raise RuntimeError("Synchronisation annulée par l'utilisateur.")
         # Certains portails ouvrent la connexion Microsoft dans une seconde page.
         for candidate in context.pages:
             if is_moodle_logged_in(candidate):
@@ -1072,8 +1075,9 @@ def sync_local(store, cfg, summary, allowed_courses=None):
 
 
 class Synchronizer:
-    def __init__(self, http, store, cfg, summary):
+    def __init__(self, http, store, cfg, summary, cancel_event=None):
         self.http, self.store, self.cfg, self.summary = http, store, cfg, summary
+        self.cancel_event = cancel_event
         self.temp = cfg.state_dir / "temp"
         self.temp.mkdir(parents=True, exist_ok=True)
         self.links = defaultdict(list)
@@ -1090,6 +1094,9 @@ class Synchronizer:
             return
         LOG.info("Amorçage depuis l'audit local : seuls les fichiers distants absents sont envoyés.")
         for number, entry in enumerate(seed, 1):
+            if self.cancel_event and self.cancel_event.is_set():
+                LOG.info("Annulation demandée pendant l'amorçage d'audit.")
+                return
             relative = safe_relative(fix_mojibake(entry["relative_path"]))
             if relative in self.store.records:
                 continue
@@ -1221,6 +1228,9 @@ class Synchronizer:
         visited = set()
         self.summary.courses[name] = "en cours"
         while pending:
+            if self.cancel_event and self.cancel_event.is_set():
+                LOG.info("Annulation demandée pendant l'analyse du cours %s.", name)
+                break
             url, section, kind, title = pending.popleft()
             if url in visited:
                 continue
@@ -1449,7 +1459,7 @@ def main(argv=None):
         target_courses = COURSES
 
 def run_sync(cfg: Config, target_courses: list | None = None, local_only: bool = False, force_moodle: bool = False,
-             on_mfa_code=None, on_progress=None, on_status=None) -> tuple[Summary, int]:
+             on_mfa_code=None, on_progress=None, on_status=None, cancel_event=None) -> tuple[Summary, int]:
     if target_courses is None:
         target_courses = COURSES
     summary, client, sftp, store, context, lock = Summary(), None, None, None, None, None
@@ -1498,8 +1508,8 @@ def run_sync(cfg: Config, target_courses: list | None = None, local_only: bool =
                     args=launch_args, accept_downloads=True, viewport={"width": 1280, "height": 850},
                 )
                 try:
-                    microsoft_login(context, cfg, on_mfa_code=on_mfa_code, on_status=on_status)
-                    synchronizer = Synchronizer(MoodleHTTP(context, cfg), store, cfg, summary)
+                    microsoft_login(context, cfg, on_mfa_code=on_mfa_code, on_status=on_status, cancel_event=cancel_event)
+                    synchronizer = Synchronizer(MoodleHTTP(context, cfg), store, cfg, summary, cancel_event=cancel_event)
                     if on_status:
                         try:
                             on_status("Amorçage de l'audit...")
@@ -1507,6 +1517,9 @@ def run_sync(cfg: Config, target_courses: list | None = None, local_only: bool =
                             pass
                     synchronizer.bootstrap_audit()
                     for number, (course_id, name) in enumerate(target_courses, 1):
+                        if cancel_event and cancel_event.is_set():
+                            LOG.info("Annulation demandée : arrêt avant le cours %s.", name)
+                            break
                         LOG.info("Progression : cours %d/%d (%s)", number, len(target_courses), name)
                         if on_progress:
                             try:

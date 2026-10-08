@@ -4,6 +4,7 @@ import functools
 import logging
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -41,6 +42,43 @@ def is_user_authorized(interaction: discord.Interaction) -> bool:
     user_roles = getattr(interaction.user, "roles", [])
     user_role_ids = {r.id for r in user_roles}
     return bool(allowed_roles & user_role_ids) or interaction.user.guild_permissions.administrator
+
+
+class SyncCancelView(discord.ui.View):
+    def __init__(self, author_id: int, cancel_event: threading.Event, timeout: float = 900.0):
+        super().__init__(timeout=timeout)
+        self.author_id = author_id
+        self.cancel_event = cancel_event
+
+    @discord.ui.button(label="Annuler la synchronisation", style=discord.ButtonStyle.danger, emoji="🛑")
+    async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        is_admin = False
+        if interaction.guild and hasattr(interaction.user, "guild_permissions"):
+            is_admin = interaction.user.guild_permissions.administrator
+
+        if self.author_id and interaction.user.id != self.author_id and not is_admin:
+            await interaction.response.send_message(
+                "❌ Seule la personne ayant lancé la synchronisation (ou un administrateur) peut l'annuler.",
+                ephemeral=True
+            )
+            return
+
+        self.cancel_event.set()
+        button.disabled = True
+        button.label = "Annulation en cours..."
+        cancelling_embed = discord.Embed(
+            title="🛑 Annulation demandée...",
+            description="Arrêt de Chromium et interruption de la synchronisation en cours...",
+            color=discord.Color.orange()
+        )
+        try:
+            await interaction.response.edit_message(embed=cancelling_embed, view=self)
+        except Exception:
+            pass
+
+    async def on_timeout(self):
+        for child in self.children:
+            child.disabled = True
 
 
 class MoodleSyncCog(commands.Cog):
@@ -99,6 +137,7 @@ class MoodleSyncCog(commands.Cog):
             await interaction.response.send_message("⚠️ Une synchronisation est déjà en cours d'exécution sur le VPS. Merci de patienter.", ephemeral=True)
             return
 
+        LOG.info("Commande /sync déclenchée par %s (%s) - matière=%s", interaction.user.name, interaction.user.id, matiere)
         await interaction.response.defer(thinking=True)
 
         target_courses = None
@@ -115,6 +154,10 @@ class MoodleSyncCog(commands.Cog):
             selected = target_courses or sync_moodle.COURSES
             course_label = ", ".join(c[1] for c in selected) if len(selected) <= 2 else f"{len(selected)} matières"
 
+            cancel_event = threading.Event()
+            author_id = user.id if user else 0
+            view = SyncCancelView(author_id=author_id, cancel_event=cancel_event)
+
             embed = discord.Embed(
                 title="🔄 Synchronisation Junia Moodle",
                 description=f"**Matières :** {course_label}\n\n⏳ *Démarrage de Chromium headless sur le VPS...*",
@@ -123,9 +166,9 @@ class MoodleSyncCog(commands.Cog):
             embed.set_footer(text="Exécution autonome sur VPS Ubuntu")
 
             if interaction:
-                status_msg = await interaction.followup.send(embed=embed)
+                status_msg = await interaction.followup.send(embed=embed, view=view)
             elif channel:
-                status_msg = await channel.send(embed=embed)
+                status_msg = await channel.send(embed=embed, view=view)
             else:
                 status_msg = None
 
@@ -137,6 +180,8 @@ class MoodleSyncCog(commands.Cog):
                 mfa_notified = True
 
                 async def notify_discord():
+                    if cancel_event.is_set():
+                        return
                     try:
                         mfa_embed = discord.Embed(
                             title="🔐 Validation requise (Microsoft Authenticator)",
@@ -149,9 +194,9 @@ class MoodleSyncCog(commands.Cog):
                         )
                         mfa_embed.set_footer(text="Délai : 60 secondes pour valider sur votre téléphone")
 
-                        if status_msg:
-                            await status_msg.edit(embed=mfa_embed)
-                        if channel and user:
+                        if status_msg and not cancel_event.is_set():
+                            await status_msg.edit(embed=mfa_embed, view=view)
+                        if channel and user and not cancel_event.is_set():
                             await channel.send(
                                 content=f"🔔 {user.mention} **Code de validation Microsoft : `{code}`**",
                                 embed=mfa_embed,
@@ -165,17 +210,17 @@ class MoodleSyncCog(commands.Cog):
 
             def on_status(status_text: str):
                 async def update_status():
-                    if status_msg and not mfa_notified:
+                    if status_msg and not mfa_notified and not cancel_event.is_set():
                         embed.description = f"**Matières :** {course_label}\n\nℹ️ *{status_text}*"
                         try:
-                            await status_msg.edit(embed=embed)
+                            await status_msg.edit(embed=embed, view=view)
                         except Exception:
                             pass
                 asyncio.run_coroutine_threadsafe(update_status(), loop)
 
             def on_progress(current: int, total: int, course_name: str):
                 async def update_progress():
-                    if status_msg:
+                    if status_msg and not cancel_event.is_set():
                         pct = int((current / total) * 10)
                         bar = "▓" * pct + "░" * (10 - pct)
                         embed.description = (
@@ -184,7 +229,7 @@ class MoodleSyncCog(commands.Cog):
                         )
                         embed.color = discord.Color.blue()
                         try:
-                            await status_msg.edit(embed=embed)
+                            await status_msg.edit(embed=embed, view=view)
                         except Exception:
                             pass
                 asyncio.run_coroutine_threadsafe(update_progress(), loop)
@@ -200,7 +245,8 @@ class MoodleSyncCog(commands.Cog):
                         target_courses=selected,
                         on_mfa_code=on_mfa_code,
                         on_progress=on_progress,
-                        on_status=on_status
+                        on_status=on_status,
+                        cancel_event=cancel_event
                     )
                     return summary, code
                 except Exception as exc:
@@ -208,6 +254,27 @@ class MoodleSyncCog(commands.Cog):
 
             summary, result = await loop.run_in_executor(None, worker)
             duration = int(time.monotonic() - start_time)
+
+            if cancel_event.is_set():
+                LOG.info("Synchronisation annulée par l'utilisateur.")
+                cancel_embed = discord.Embed(
+                    title="🛑 Synchronisation annulée",
+                    description=(
+                        "La synchronisation a été interrompue à votre demande.\n"
+                        "Le navigateur Chromium a été fermé et les processus ont été arrêtés."
+                    ),
+                    color=discord.Color.dark_grey()
+                )
+                if summary and summary.sent:
+                    cancel_embed.add_field(
+                        name="📦 Fichiers synchronisés avant arrêt",
+                        value=f"{len(summary.sent)} fichier(s)",
+                        inline=False
+                    )
+                cancel_embed.set_footer(text="Arrêté à la demande de l'utilisateur")
+                if status_msg:
+                    await status_msg.edit(embed=cancel_embed, view=None)
+                return
 
             if summary is None or (result != 0 and summary.errors and not summary.sent):
                 err_desc = result if summary is None else "\n".join(f"• {e.get('error', e)}" for e in summary.errors[:3])
@@ -217,7 +284,7 @@ class MoodleSyncCog(commands.Cog):
                     color=discord.Color.red()
                 )
                 if status_msg:
-                    await status_msg.edit(embed=err_embed)
+                    await status_msg.edit(embed=err_embed, view=None)
                 return
 
             # Construction du récapitulatif final
@@ -255,7 +322,7 @@ class MoodleSyncCog(commands.Cog):
             final_embed.set_footer(text="Montage OneDrive actif sur le VPS | Fichiers disponibles immédiatement")
 
             if status_msg:
-                await status_msg.edit(embed=final_embed)
+                await status_msg.edit(embed=final_embed, view=None)
             elif channel:
                 await channel.send(embed=final_embed)
 
