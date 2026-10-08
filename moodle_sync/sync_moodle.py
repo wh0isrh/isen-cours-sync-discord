@@ -798,16 +798,18 @@ class Synchronizer:
                 relative, record = candidate, saved
                 break
         audited = self.store.records.get(relative)
-        if not record and audited and not audited.get("sources") and meta.size is not None and self.store.matches(relative, meta.size, audited.get("sha256")):
-            self.store.remember(relative, meta.size, audited.get("sha256"), resource.url, meta)
+        expected_size = meta.size if meta.size is not None else (record.get("size") if record else (audited.get("size") if audited else None))
+        if not record and audited and not audited.get("sources") and expected_size is not None and self.store.matches(relative, expected_size, audited.get("sha256")):
+            self.store.remember(relative, expected_size, audited.get("sha256"), resource.url, meta)
             self.summary.mark(relative)
             LOG.info("Ignoré (déjà présent sur le serveur) : %s", relative)
             return
-        if record and meta.size is not None:
+        if record:
             before = record["sources"][identity]
             validator_changed = any(current and current != previous for current, previous in ((meta.etag, before.get("etag")), (meta.modified, before.get("modified"))))
             has_validator = bool(meta.etag or meta.modified)
-            if not validator_changed and (has_validator or not self.cfg.strict_source) and self.store.matches(relative, meta.size, record.get("sha256")):
+            check_size = meta.size if meta.size is not None else record.get("size")
+            if not validator_changed and (has_validator or not self.cfg.strict_source) and check_size is not None and self.store.matches(relative, check_size, record.get("sha256")):
                 self.summary.mark(relative)
                 LOG.info("Ignoré (déjà présent et vérifié) : %s", relative)
                 return
