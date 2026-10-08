@@ -478,16 +478,15 @@ def microsoft_login(context, cfg, on_mfa_code=None, on_status=None):
         host = urlsplit(active.url).hostname or ""
         if host in {"login.microsoftonline.com", "login.live.com", "login.windows.net"}:
             tile = active.locator(f"[data-test-id*='{cfg.email}'], [role='button']:has-text('{cfg.email}')").filter(has_text=cfg.email)
-            if not sent_email and tile.count() and tile.first.is_visible():
-                tile.first.click()
-                sent_email = True
-            elif cfg.email and not sent_email and fill_visible(active, "input[type=email], input[name=loginfmt]", cfg.email):
+            if fill_visible(active, "input[type=email], input[name=loginfmt]", cfg.email):
                 active.locator("input[type=email], input[name=loginfmt]").first.press("Enter")
                 sent_email = True
+            elif not sent_email and tile.count() and tile.first.is_visible():
+                tile.first.click()
             elif cfg.password and not sent_password and fill_visible(active, "input[name=passwd], input[type=password]", cfg.password):
                 active.locator("input[name=passwd], input[type=password]").first.press("Enter")
                 sent_password = True
-                countdown_until = time.monotonic() + cfg.wait_2fa
+                LOG.info("Mot de passe soumis, attente de l'A2F...")
             # Valider automatiquement « Rester connecté ? » si présent
             kmsi = active.locator("input#idSIButton9, input[type=submit][value='Oui'], button:has-text('Oui')")
             if kmsi.count() and kmsi.first.is_visible() and active.get_by_text(re.compile("Rester connect|Stay signed", re.I)).count():
@@ -497,10 +496,11 @@ def microsoft_login(context, cfg, on_mfa_code=None, on_status=None):
                 kmsi.first.click()
 
             # Détection et affichage en grand du code A2F
-            if not announced_mfa_code:
+            if sent_password and not announced_mfa_code:
                 code = extract_mfa_code(active)
                 if code:
                     announced_mfa_code = code
+                    countdown_until = time.monotonic() + max(cfg.wait_2fa, 60)
                     print("\n" + format_mfa_banner(code), flush=True)
                     LOG.info(">>> CODE MICROSOFT AUTHENTICATOR (A2F) : [ %s ] <<<", code)
                     if on_mfa_code:
@@ -509,12 +509,12 @@ def microsoft_login(context, cfg, on_mfa_code=None, on_status=None):
                         except Exception as exc:
                             LOG.warning("Erreur callback on_mfa_code : %s", exc)
 
-            # La notification peut arriver après la saisie manuelle du mot de passe.
-            if not announced and (sent_password or announced_mfa_code or active.get_by_text(re.compile("Authenticator|approuv|approve|vérifi.*identité", re.I)).count()):
+            # Notification seulement après soumission du mot de passe
+            if not announced and sent_password and (announced_mfa_code or active.get_by_text(re.compile("Authenticator|Outlook mobile|approuv|approve|vérifi.*identité|enter the number", re.I)).count()):
                 announced = True
-                countdown_until = countdown_until or time.monotonic() + cfg.wait_2fa
+                countdown_until = countdown_until or time.monotonic() + max(cfg.wait_2fa, 60)
                 if not announced_mfa_code:
-                    LOG.info("Validez l'A2F Microsoft sur votre smartphone (le numéro est dans le navigateur).")
+                    LOG.info("Validez l'A2F Microsoft sur votre smartphone.")
         elif host == "junia-learning.com" and not clicked_sso:
             # Lien vérifié sur la page publique Junia : « J'ai une adresse mail Junia ».
             sso = active.locator("a[href*='/auth/oidc/']")
@@ -524,10 +524,11 @@ def microsoft_login(context, cfg, on_mfa_code=None, on_status=None):
                 sso.first.click(timeout=10000)
                 clicked_sso = True
         if countdown_until:
-            if not announced_mfa_code:
+            if sent_password and not announced_mfa_code:
                 code = extract_mfa_code(active)
                 if code:
                     announced_mfa_code = code
+                    countdown_until = time.monotonic() + max(cfg.wait_2fa, 60)
                     print("\n" + format_mfa_banner(code), flush=True)
                     LOG.info(">>> CODE MICROSOFT AUTHENTICATOR (A2F) : [ %s ] <<<", code)
                     if on_mfa_code:
