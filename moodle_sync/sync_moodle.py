@@ -487,26 +487,35 @@ def microsoft_login(context, cfg, on_mfa_code=None, on_status=None):
 
         host = urlsplit(active.url).hostname or ""
         if host in {"login.microsoftonline.com", "login.live.com", "login.windows.net"}:
-            tile = active.locator(f"[data-test-id*='{cfg.email}'], [role='button']:has-text('{cfg.email}')").filter(has_text=cfg.email)
-            if fill_visible(active, "input[type=email], input[name=loginfmt]", cfg.email):
-                try:
-                    active.locator("input[type=email], input[name=loginfmt]").first.press("Enter", timeout=4000)
-                    sent_email = True
-                except Exception:
-                    pass
-            elif not sent_email and tile.count() and tile.first.is_visible():
-                try:
-                    active.wait_for_timeout(500)
-                    tile.first.click(timeout=4000)
-                except Exception:
-                    pass
-            elif cfg.password and not sent_password and fill_visible(active, "input[name=passwd], input[type=password]", cfg.password):
+            # 1. Priorité absolue : si le mot de passe est demandé, le remplir et soumettre
+            if cfg.password and not sent_password and fill_visible(active, "input[name=passwd], input[type=password]", cfg.password):
                 try:
                     active.locator("input[name=passwd], input[type=password]").first.press("Enter", timeout=4000)
                     sent_password = True
-                    LOG.info("Mot de passe soumis, attente de l'A2F...")
+                    LOG.info("Mot de passe soumis, attente du défi A2F...")
                 except Exception:
                     pass
+
+            # 2. Si le champ email est demandé
+            if not sent_email and fill_visible(active, "input[type=email], input[name=loginfmt]", cfg.email):
+                try:
+                    active.locator("input[type=email], input[name=loginfmt]").first.press("Enter", timeout=4000)
+                    sent_email = True
+                    LOG.info("Email soumis.")
+                except Exception:
+                    pass
+
+            # 3. Si une tuile de compte est affichée et qu'on n'a pas encore validé l'email ni le mot de passe
+            if not sent_email and not sent_password:
+                tile = active.locator(f"[data-test-id*='{cfg.email}'], [role='button']:has-text('{cfg.email}')").filter(has_text=cfg.email)
+                if tile.count() and tile.first.is_visible():
+                    try:
+                        active.wait_for_timeout(300)
+                        tile.first.click(timeout=4000)
+                        LOG.info("Tuile de compte sélectionnée.")
+                        active.wait_for_timeout(500)
+                    except Exception:
+                        pass
             # Valider automatiquement « Rester connecté ? » si présent
             kmsi = active.locator("input#idSIButton9, input[type=submit][value='Oui'], button:has-text('Oui')")
             if kmsi.count() and kmsi.first.is_visible() and active.get_by_text(re.compile("Rester connect|Stay signed", re.I)).count():
