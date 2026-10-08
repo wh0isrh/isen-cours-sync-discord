@@ -509,7 +509,7 @@ def microsoft_login(context, cfg, on_mfa_code=None, on_status=None):
                     pass
 
             # Détection et affichage en grand du code A2F
-            if sent_password and not announced_mfa_code:
+            if not announced_mfa_code:
                 code = extract_mfa_code(active)
                 if code:
                     announced_mfa_code = code
@@ -522,12 +522,17 @@ def microsoft_login(context, cfg, on_mfa_code=None, on_status=None):
                         except Exception as exc:
                             LOG.warning("Erreur callback on_mfa_code : %s", exc)
 
-            # Notification seulement après soumission du mot de passe
-            if not announced and sent_password and (announced_mfa_code or active.get_by_text(re.compile("Authenticator|Outlook mobile|approuv|approve|vérifi.*identité|enter the number", re.I)).count()):
+            # Notification seulement après invite A2F détectée
+            if not announced and (announced_mfa_code or (sent_password and active.get_by_text(re.compile("Authenticator|Outlook mobile|approuv|approve|vérifi.*identité|enter the number", re.I)).count())):
                 announced = True
                 countdown_until = countdown_until or time.monotonic() + max(cfg.wait_2fa, 60)
                 if not announced_mfa_code:
                     LOG.info("Validez l'A2F Microsoft sur votre smartphone.")
+                    if on_status:
+                        try:
+                            on_status("📱 Validez la demande sur votre application mobile Microsoft...")
+                        except Exception:
+                            pass
         elif host == "junia-learning.com" and not clicked_sso:
             # Lien vérifié sur la page publique Junia : « J'ai une adresse mail Junia ».
             sso = active.locator("a[href*='/auth/oidc/']")
@@ -537,7 +542,7 @@ def microsoft_login(context, cfg, on_mfa_code=None, on_status=None):
                 sso.first.click(timeout=10000)
                 clicked_sso = True
         if countdown_until:
-            if sent_password and not announced_mfa_code:
+            if not announced_mfa_code:
                 code = extract_mfa_code(active)
                 if code:
                     announced_mfa_code = code

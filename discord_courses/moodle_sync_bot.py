@@ -137,25 +137,29 @@ class MoodleSyncCog(commands.Cog):
                 mfa_notified = True
 
                 async def notify_discord():
-                    mfa_embed = discord.Embed(
-                        title="🔐 Validation requise (Microsoft Authenticator)",
-                        description=(
-                            f"Une demande de double authentification est affichée par Microsoft :\n\n"
-                            f"# 👉 [  **{code}**  ] 👈\n\n"
-                            f"📱 **Ouvrez Microsoft Authenticator sur votre smartphone et entrez le code ci-dessus.**"
-                        ),
-                        color=discord.Color.gold()
-                    )
-                    mfa_embed.set_footer(text="Délai : 60 secondes pour valider sur votre téléphone")
-
-                    if status_msg:
-                        await status_msg.edit(embed=mfa_embed)
-                    if channel and user:
-                        await channel.send(
-                            content=f"🔔 {user.mention} **Code de validation Microsoft : `{code}`**",
-                            embed=mfa_embed,
-                            allowed_mentions=discord.AllowedMentions(users=True)
+                    try:
+                        mfa_embed = discord.Embed(
+                            title="🔐 Validation requise (Microsoft Authenticator)",
+                            description=(
+                                f"Une demande de double authentification est affichée par Microsoft :\n\n"
+                                f"# 👉 [  **{code}**  ] 👈\n\n"
+                                f"📱 **Ouvrez Microsoft Authenticator sur votre smartphone et entrez le code ci-dessus.**"
+                            ),
+                            color=discord.Color.gold()
                         )
+                        mfa_embed.set_footer(text="Délai : 60 secondes pour valider sur votre téléphone")
+
+                        if status_msg:
+                            await status_msg.edit(embed=mfa_embed)
+                        if channel and user:
+                            await channel.send(
+                                content=f"🔔 {user.mention} **Code de validation Microsoft : `{code}`**",
+                                embed=mfa_embed,
+                                allowed_mentions=discord.AllowedMentions(users=True)
+                            )
+                        LOG.info("Notification A2F envoyée avec succès sur Discord : %s", code)
+                    except Exception as err:
+                        LOG.error("Erreur envoi notification Discord A2F : %s", err)
 
                 asyncio.run_coroutine_threadsafe(notify_discord(), loop)
 
