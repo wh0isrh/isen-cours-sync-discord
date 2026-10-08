@@ -205,10 +205,11 @@ class MoodleSyncCog(commands.Cog):
             summary, result = await loop.run_in_executor(None, worker)
             duration = int(time.monotonic() - start_time)
 
-            if summary is None:
+            if summary is None or (result != 0 and summary.errors and not summary.sent):
+                err_desc = result if summary is None else "\n".join(f"• {e.get('error', e)}" for e in summary.errors[:3])
                 err_embed = discord.Embed(
                     title="❌ Échec de la synchronisation",
-                    description=f"Une erreur est survenue lors de l'exécution :\n```{result}```",
+                    description=f"Une erreur est survenue lors de l'exécution :\n```{err_desc}```",
                     color=discord.Color.red()
                 )
                 if status_msg:
@@ -220,7 +221,14 @@ class MoodleSyncCog(commands.Cog):
             nb_new = len(new_files)
             nb_skipped = len(summary.skipped)
 
-            if nb_new > 0:
+            if summary.errors:
+                err_preview = "\n".join(f"• {e.get('error', e)}" for e in summary.errors[:2])
+                final_embed = discord.Embed(
+                    title="⚠️ Synchronisation terminée avec avertissements",
+                    description=f"La synchronisation a rencontré des erreurs :\n```{err_preview}```",
+                    color=discord.Color.orange()
+                )
+            elif nb_new > 0:
                 final_embed = discord.Embed(
                     title="✨ Synchronisation terminée avec succès !",
                     description=f"**{nb_new} nouveau(x) fichier(s) téléchargé(s)** et synchronisé(s) vers OneDrive.",

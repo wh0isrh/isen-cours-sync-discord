@@ -479,21 +479,34 @@ def microsoft_login(context, cfg, on_mfa_code=None, on_status=None):
         if host in {"login.microsoftonline.com", "login.live.com", "login.windows.net"}:
             tile = active.locator(f"[data-test-id*='{cfg.email}'], [role='button']:has-text('{cfg.email}')").filter(has_text=cfg.email)
             if fill_visible(active, "input[type=email], input[name=loginfmt]", cfg.email):
-                active.locator("input[type=email], input[name=loginfmt]").first.press("Enter")
-                sent_email = True
+                try:
+                    active.locator("input[type=email], input[name=loginfmt]").first.press("Enter", timeout=4000)
+                    sent_email = True
+                except Exception:
+                    pass
             elif not sent_email and tile.count() and tile.first.is_visible():
-                tile.first.click()
+                try:
+                    active.wait_for_timeout(500)
+                    tile.first.click(timeout=4000)
+                except Exception:
+                    pass
             elif cfg.password and not sent_password and fill_visible(active, "input[name=passwd], input[type=password]", cfg.password):
-                active.locator("input[name=passwd], input[type=password]").first.press("Enter")
-                sent_password = True
-                LOG.info("Mot de passe soumis, attente de l'A2F...")
+                try:
+                    active.locator("input[name=passwd], input[type=password]").first.press("Enter", timeout=4000)
+                    sent_password = True
+                    LOG.info("Mot de passe soumis, attente de l'A2F...")
+                except Exception:
+                    pass
             # Valider automatiquement « Rester connecté ? » si présent
             kmsi = active.locator("input#idSIButton9, input[type=submit][value='Oui'], button:has-text('Oui')")
             if kmsi.count() and kmsi.first.is_visible() and active.get_by_text(re.compile("Rester connect|Stay signed", re.I)).count():
-                check = active.locator("input#KmsiCheckboxField, input[name='DontShowAgain']")
-                if check.count() and check.first.is_visible() and not check.first.is_checked():
-                    check.first.check()
-                kmsi.first.click()
+                try:
+                    check = active.locator("input#KmsiCheckboxField, input[name='DontShowAgain']")
+                    if check.count() and check.first.is_visible() and not check.first.is_checked():
+                        check.first.check(timeout=2000)
+                    kmsi.first.click(timeout=4000)
+                except Exception:
+                    pass
 
             # Détection et affichage en grand du code A2F
             if sent_password and not announced_mfa_code:
