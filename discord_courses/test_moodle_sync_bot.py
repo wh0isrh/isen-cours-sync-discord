@@ -80,6 +80,24 @@ class TestSyncCancelView(unittest.TestCase):
         self.assertTrue(btn.disabled)
         interaction.response.edit_message.assert_awaited_once()
 
+    def test_cancel_button_triggers_on_cancel(self):
+        event = threading.Event()
+        on_cancel_mock = AsyncMock()
+        view = bot_module.SyncCancelView(author_id=12345, cancel_event=event, on_cancel=on_cancel_mock)
+
+        interaction = MagicMock(spec=discord.Interaction)
+        interaction.user = MagicMock()
+        interaction.user.id = 12345
+        interaction.guild = None
+        interaction.response = MagicMock()
+        interaction.response.edit_message = AsyncMock()
+
+        btn = view.children[0]
+        asyncio.run(btn.callback(interaction))
+
+        self.assertTrue(event.is_set())
+        on_cancel_mock.assert_awaited_once()
+
 
 if __name__ == "__main__":
     unittest.main()

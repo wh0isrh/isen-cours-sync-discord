@@ -45,10 +45,11 @@ def is_user_authorized(interaction: discord.Interaction) -> bool:
 
 
 class SyncCancelView(discord.ui.View):
-    def __init__(self, author_id: int, cancel_event: threading.Event, timeout: float = 900.0):
+    def __init__(self, author_id: int, cancel_event: threading.Event, on_cancel=None, timeout: float = 900.0):
         super().__init__(timeout=timeout)
         self.author_id = author_id
         self.cancel_event = cancel_event
+        self.on_cancel = on_cancel
 
     @discord.ui.button(label="Annuler la synchronisation", style=discord.ButtonStyle.danger, emoji="🛑")
     async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -75,6 +76,14 @@ class SyncCancelView(discord.ui.View):
             await interaction.response.edit_message(embed=cancelling_embed, view=self)
         except Exception:
             pass
+
+        if self.on_cancel:
+            try:
+                res = self.on_cancel()
+                if asyncio.iscoroutine(res):
+                    await res
+            except Exception:
+                pass
 
     async def on_timeout(self):
         for child in self.children:
@@ -156,7 +165,24 @@ class MoodleSyncCog(commands.Cog):
 
             cancel_event = threading.Event()
             author_id = user.id if user else 0
-            view = SyncCancelView(author_id=author_id, cancel_event=cancel_event)
+            mfa_msg: discord.Message | None = None
+            mfa_notified = False
+            mfa_validated = False
+
+            async def cleanup_mfa_message():
+                nonlocal mfa_msg
+                if mfa_msg:
+                    to_delete = mfa_msg
+                    mfa_msg = None
+                    try:
+                        await to_delete.delete()
+                        LOG.info("Message Discord avec le code A2F supprimé après validation.")
+                    except discord.NotFound:
+                        pass
+                    except Exception as err:
+                        LOG.warning("Erreur suppression message code A2F : %s", err)
+
+            view = SyncCancelView(author_id=author_id, cancel_event=cancel_event, on_cancel=cleanup_mfa_message)
 
             embed = discord.Embed(
                 title="🔄 Synchronisation Junia Moodle",
@@ -173,14 +199,14 @@ class MoodleSyncCog(commands.Cog):
                 status_msg = None
 
             loop = asyncio.get_running_loop()
-            mfa_notified = False
 
             def on_mfa_code(code: str):
                 nonlocal mfa_notified
                 mfa_notified = True
 
                 async def notify_discord():
-                    if cancel_event.is_set():
+                    nonlocal mfa_msg
+                    if cancel_event.is_set() or mfa_validated:
                         return
                     try:
                         mfa_embed = discord.Embed(
@@ -194,10 +220,10 @@ class MoodleSyncCog(commands.Cog):
                         )
                         mfa_embed.set_footer(text="Délai : 60 secondes pour valider sur votre téléphone")
 
-                        if status_msg and not cancel_event.is_set():
+                        if status_msg and not cancel_event.is_set() and not mfa_validated:
                             await status_msg.edit(embed=mfa_embed, view=view)
-                        if channel and user and not cancel_event.is_set():
-                            await channel.send(
+                        if channel and user and not cancel_event.is_set() and not mfa_validated:
+                            mfa_msg = await channel.send(
                                 content=f"🔔 {user.mention} **Code de validation Microsoft : `{code}`**",
                                 embed=mfa_embed,
                                 allowed_mentions=discord.AllowedMentions(users=True)
@@ -210,16 +236,26 @@ class MoodleSyncCog(commands.Cog):
 
             def on_status(status_text: str):
                 async def update_status():
-                    if status_msg and not mfa_notified and not cancel_event.is_set():
-                        embed.description = f"**Matières :** {course_label}\n\nℹ️ *{status_text}*"
-                        try:
-                            await status_msg.edit(embed=embed, view=view)
-                        except Exception:
-                            pass
+                    nonlocal mfa_validated
+                    status_lower = status_text.lower()
+                    if "confirmée" in status_lower or "réussie" in status_lower:
+                        mfa_validated = True
+                        await cleanup_mfa_message()
+                    if status_msg and not cancel_event.is_set():
+                        if not mfa_notified or mfa_validated:
+                            embed.description = f"**Matières :** {course_label}\n\nℹ️ *{status_text}*"
+                            embed.color = discord.Color.blue()
+                            try:
+                                await status_msg.edit(embed=embed, view=view)
+                            except Exception:
+                                pass
                 asyncio.run_coroutine_threadsafe(update_status(), loop)
 
             def on_progress(current: int, total: int, course_name: str):
                 async def update_progress():
+                    nonlocal mfa_validated
+                    mfa_validated = True
+                    await cleanup_mfa_message()
                     if status_msg and not cancel_event.is_set():
                         pct = int((current / total) * 10)
                         bar = "▓" * pct + "░" * (10 - pct)
@@ -253,6 +289,7 @@ class MoodleSyncCog(commands.Cog):
                     return None, str(exc)
 
             summary, result = await loop.run_in_executor(None, worker)
+            await cleanup_mfa_message()
             duration = int(time.monotonic() - start_time)
 
             if cancel_event.is_set():
